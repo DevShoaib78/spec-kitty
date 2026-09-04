@@ -1161,6 +1161,7 @@ def init(  # noqa: C901
         "kiro": ".kiro/",
         "pi": ".agents/skills/",
         "letta": ".agents/skills/",
+        "llxprt": ".llxprt/",
     }
 
     notice_entries = []
