@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-09-10'
+updated: '2026-09-13'
 ---
 # Changelog
 
@@ -13,9 +13,17 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 3.2.8rc1
+## [4.0.0rc1] - 2026-09-13
 
-_The 3.2.7rc1 candidate cycle is open. Entries land here as missions merge._
+First public release candidate for the Team Kitty 4.x line. This is a testing
+prerelease, not stable launch acceptance. Install explicitly with
+`uv tool install 'spec-kitty-cli==4.0.0rc1'`.
+
+The CLI keeps the public shared-package targets: events 9.1.6 and tracker 0.5.2.
+Hosted end-to-end qualification, independent cold starts and final launch sign-off
+remain tracked in planning#1999 and spec-kitty/spec-kitty-saas#1381. RC publication
+makes this exact package available for that qualification; it does not claim those
+checks have passed.
 
 Runtime lookup now reports `RUN_IDENTITY_MIGRATION_REQUIRED` when identity backfill leaves an older run without a recorded mission ID. It preserves the existing cursor and journal instead of silently starting over. The error identifies the run and explains how to bind its index entry after verifying ownership.
 
