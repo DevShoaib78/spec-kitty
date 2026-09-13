@@ -1178,6 +1178,77 @@ def sync_push_command(
 
 
 # ---------------------------------------------------------------------------
+# hosted issue write (saas#1788)
+# ---------------------------------------------------------------------------
+
+
+@app.command("issue-write")
+def issue_write_command(
+    items_json: str = typer.Option(
+        ...,
+        "--items-json",
+        help="Path to JSON file with issue-write items ('-' for stdin). Each item: "
+        "action (create/update/transition), ref (update/transition), patch, "
+        "target_status (transition), dedup_key (optional, create).",
+    ),
+    as_json: bool = typer.Option(False, "--json", help="Render the result envelope as JSON"),
+) -> None:
+    """Execute hosted provider issue writes (real GitHub create/edit/close).
+
+    Unlike ``tracker sync push`` (which only records link state on the SaaS
+    side), this performs the actual issue writes through Team Kitty under
+    your linked provider account (saas#1788). SaaS-backed providers only;
+    local providers write through their own connectors.
+    """
+    root = require_repo_root()
+    _check_sync_readiness(root=root)
+    import sys as _sys
+
+    def _run() -> None:
+        service = _service(root=root)
+        config = load_tracker_config(root)
+
+        if not (config.provider and config.provider in SAAS_PROVIDERS):
+            typer.secho(
+                "Error: hosted issue writes are a SaaS-backed-provider operation. "
+                "Local providers write through their own connectors.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        if items_json == "-":
+            raw = _sys.stdin.read()
+        else:
+            from pathlib import Path as _Path  # noqa: PLC0415
+
+            raw = _Path(items_json).read_text(encoding="utf-8")
+        parsed = json.loads(raw)
+        if not isinstance(parsed, list):
+            typer.secho(
+                "Error: --items-json must contain a JSON array of issue-write items.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        payload = service.issue_write(items=parsed)
+
+        if as_json:
+            _print_json(payload)
+            return
+
+        _echo_saas_sync_summary("Issue write", payload)
+        for error in payload.get("item_errors", []):
+            typer.secho(
+                f"- item error: {error.get('code', 'unknown')}: {error.get('message', '')}",
+                fg=typer.colors.RED,
+            )
+
+    _run_or_exit(_run)
+
+
+# ---------------------------------------------------------------------------
 # sync run
 # ---------------------------------------------------------------------------
 

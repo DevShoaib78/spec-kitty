@@ -331,6 +331,7 @@ class SaaSTrackerClient:
     _MAPPINGS_PATH = "/api/v1/tracker/mappings/"
     _PULL_PATH = "/api/v1/tracker/pull/"
     _PUSH_PATH = "/api/v1/tracker/push/"
+    _ISSUE_WRITE_PATH = "/api/v1/tracker/issue-write/"
     _RUN_PATH = "/api/v1/tracker/run/"
     _OPERATIONS_PATH = "/api/v1/tracker/operations/{operation_id}/"
     _SEARCH_ISSUES_PATH = "/api/v1/tracker/issue-search/"
@@ -703,6 +704,7 @@ class SaaSTrackerClient:
             self._BIND_ORIGIN_PATH,
             self._BIND_CONFIRM_PATH,
             self._PUSH_PATH,
+            self._ISSUE_WRITE_PATH,
             self._RUN_PATH,
         }
         # A minted key must be deterministic across process death, not just
@@ -1261,6 +1263,42 @@ class SaaSTrackerClient:
         response = self._request_with_retry(
             "POST",
             self._PUSH_PATH,
+            json=payload,
+            headers={"Idempotency-Key": idempotency_key} if idempotency_key else None,
+        )
+
+        result: dict[str, Any] = response.json()
+        return result
+
+    def issue_write(
+        self,
+        provider: str,
+        project_slug: str | None = None,
+        items: list[dict[str, Any]] | None = None,
+        *,
+        binding_ref: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """POST /api/v1/tracker/issue-write -- hosted provider issue writes.
+
+        Unlike ``push`` (which only records Team Kitty link state), the
+        hosted issue-write endpoint executes real GitHub issue create/edit/
+        close under the resolved user link (saas#1788). Items carry
+        ``action`` (``create``/``update``/``transition``), a ``ref`` with the
+        provider issue id (update/transition), a ``patch``, a
+        ``target_status`` (transition) and an optional create-only
+        ``dedup_key`` that makes a client-side retry converge on a single
+        created issue.
+
+        May return 200 (sync) or 202 (async -> poll).
+        """
+        payload: dict[str, Any] = {
+            **self._routing_params(provider, project_slug, binding_ref),
+            "items": items or [],
+        }
+        response = self._request_with_retry(
+            "POST",
+            self._ISSUE_WRITE_PATH,
             json=payload,
             headers={"Idempotency-Key": idempotency_key} if idempotency_key else None,
         )

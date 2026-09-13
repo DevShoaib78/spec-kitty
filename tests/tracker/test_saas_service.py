@@ -678,6 +678,28 @@ class TestSyncPull:
         mock_client.pull.assert_called_once_with("linear", limit=100, project_slug="my-proj")
 
 
+class TestIssueWrite:
+    def test_issue_write_delegates_to_client(self, service: SaaSTrackerService, mock_client: MagicMock) -> None:
+        mock_client.issue_write.return_value = {"status": "ok", "summary": {"total": 0}}
+
+        result = service.issue_write()
+
+        mock_client.issue_write.assert_called_once_with("linear", items=[], project_slug="my-proj")
+        assert result["status"] == "ok"
+
+    def test_issue_write_forwards_items(self, service: SaaSTrackerService, mock_client: MagicMock) -> None:
+        """Caller-supplied items are forwarded verbatim to the SaaS client."""
+        items = [
+            {
+                "action": "create",
+                "patch": {"mission_id": "m1", "wp_id": "WP01", "title": "Canary"},
+                "dedup_key": "canary-1788",
+            }
+        ]
+        service.issue_write(items=items)
+        mock_client.issue_write.assert_called_once_with("linear", items=items, project_slug="my-proj")
+
+
 class TestSyncPush:
     def test_push_delegates_to_client(self, service: SaaSTrackerService, mock_client: MagicMock) -> None:
         result = service.sync_push()

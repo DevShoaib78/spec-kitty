@@ -713,6 +713,62 @@ def test_sync_pull_json(mock_service_fn, monkeypatch) -> None:
 
 
 # ---------------------------------------------------------------------------
+# hosted issue write (saas#1788)
+# ---------------------------------------------------------------------------
+
+
+@patch("specify_cli.cli.commands.tracker.require_repo_root")
+@patch("specify_cli.cli.commands.tracker.load_tracker_config")
+@patch("specify_cli.cli.commands.tracker._service")
+def test_issue_write_saas_with_items_json(mock_service_fn, mock_load_cfg, mock_repo_root, monkeypatch, tmp_path) -> None:
+    """Hosted issue write with --items-json sends items to the service."""
+    from specify_cli.tracker.config import TrackerProjectConfig
+
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.issue_write.return_value = {
+        "status": "ok",
+        "summary": {"total": 1, "succeeded": 1, "failed": 0, "skipped": 0},
+        "items": [{"action": "create", "outcome": "created"}],
+    }
+    mock_service_fn.return_value = mock_svc
+    mock_load_cfg.return_value = TrackerProjectConfig(provider="github", project_slug="proj")
+    mock_repo_root.return_value = tmp_path
+
+    items_file = tmp_path / "items.json"
+    items_file.write_text('[{"action": "create", "patch": {"mission_id": "m1", "wp_id": "WP01", "title": "Canary"}, "dedup_key": "k1"}]')
+
+    result = runner.invoke(app, ["issue-write", "--items-json", str(items_file), "--json"])
+    assert result.exit_code == 0, result.output
+    mock_svc.issue_write.assert_called_once()
+    call_kwargs = mock_svc.issue_write.call_args[1]
+    assert call_kwargs["items"][0]["action"] == "create"
+    data = json.loads(result.output)
+    assert data["summary"]["succeeded"] == 1
+
+
+@patch("specify_cli.cli.commands.tracker.require_repo_root")
+@patch("specify_cli.cli.commands.tracker.load_tracker_config")
+@patch("specify_cli.cli.commands.tracker._service")
+def test_issue_write_refuses_local_providers(mock_service_fn, mock_load_cfg, mock_repo_root, monkeypatch, tmp_path) -> None:
+    """Hosted issue write is a SaaS-only operation; local providers are refused."""
+    from specify_cli.tracker.config import TrackerProjectConfig
+
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_service_fn.return_value = mock_svc
+    mock_load_cfg.return_value = TrackerProjectConfig(provider="beads", project_slug="proj")
+    mock_repo_root.return_value = tmp_path
+
+    items_file = tmp_path / "items.json"
+    items_file.write_text("[]")
+
+    result = runner.invoke(app, ["issue-write", "--items-json", str(items_file)])
+    assert result.exit_code == 1
+    mock_svc.issue_write.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
 # sync push: JSON output for SaaS envelope
 # ---------------------------------------------------------------------------
 

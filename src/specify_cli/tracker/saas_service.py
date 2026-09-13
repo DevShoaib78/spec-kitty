@@ -578,6 +578,23 @@ class SaaSTrackerService:
         result["pending_binding_upgrade"] = self._report_binding_upgrade(result)
         return result
 
+    def issue_write(self, *, items: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        """Execute hosted provider issue writes via the SaaS control plane.
+
+        Unlike ``sync_push`` (record-only link upserts on the SaaS side),
+        this posts to the hosted issue-write endpoint that performs the real
+        provider writes (saas#1788). ``items`` is a list of issue-write
+        items: ``action`` (``create``/``update``/``transition``), ``ref``
+        (update/transition), ``patch``, ``target_status`` (transition) and
+        an optional create-only ``dedup_key``.
+        """
+        routing = self._resolve_routing_params()
+        result = self._call_with_stale_detection(
+            self._client.issue_write, self.provider, items=items or [], **routing,
+        )
+        result["pending_binding_upgrade"] = self._report_binding_upgrade(result)
+        return result
+
     def sync_run(self, *, limit: int = 100) -> dict[str, Any]:
         """Run a full sync cycle via the SaaS control plane."""
         routing = self._resolve_routing_params()

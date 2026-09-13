@@ -316,6 +316,56 @@ class TestMappings:
 # ---------------------------------------------------------------------------
 
 
+class TestIssueWrite:
+    """POST /api/v1/tracker/issue-write -- hosted provider issue writes (saas#1788)."""
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_issue_write_200_sync(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_http.request.return_value = _make_response(
+            200,
+            {"status": "ok", "summary": {"total": 1, "succeeded": 1, "failed": 0}, "items": []},
+        )
+
+        result = client.issue_write("github", "proj-1", [{"action": "create", "patch": {"title": "t"}}])
+        assert result["status"] == "ok"
+
+        args, kwargs = mock_http.request.call_args
+        assert args[0] == "POST"
+        assert args[1].endswith("/api/v1/tracker/issue-write/")
+        assert kwargs["json"]["items"][0]["action"] == "create"
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_issue_write_mints_idempotency_key(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_http.request.return_value = _make_response(200, {"status": "ok", "summary": {}})
+
+        client.issue_write("github", "proj-1", [])
+
+        _, kwargs = mock_http.request.call_args
+        idem_key = kwargs["headers"]["Idempotency-Key"]
+        # Same minted-key wire shape as push, but a distinct digest because
+        # the path is part of the digest input.
+        assert idem_key.startswith("logical-operation:write:")
+        assert len(idem_key.removeprefix("logical-operation:write:")) == 64  # golden-count: cardinality-is-contract
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_issue_write_custom_idempotency_key(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_http.request.return_value = _make_response(200, {"status": "ok", "summary": {}})
+
+        client.issue_write("github", "proj-1", [], idempotency_key="canary-1788")
+
+        _, kwargs = mock_http.request.call_args
+        assert kwargs["headers"]["Idempotency-Key"] == "canary-1788"
+
+
 class TestPush:
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_push_200_sync(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
