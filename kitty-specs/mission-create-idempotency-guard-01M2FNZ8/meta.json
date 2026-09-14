@@ -1,0 +1,17 @@
+{
+  "coordination_branch": "kitty/mission-mission-create-idempotency-guard-01M2FNZ8",
+  "created_at": "2026-09-14T10:04:00.320801+00:00",
+  "flattened": false,
+  "friendly_name": "Mission-create idempotency guard",
+  "mid8": "01M2FNZ8",
+  "mission_id": "01M2FNZ8XPXETAA9EBAZJZJDGG",
+  "mission_number": null,
+  "mission_slug": "mission-create-idempotency-guard-01M2FNZ8",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "spec-kitty specify / agent mission create invoked twice for the same intent silently creates two missions (both exit 0); add a fail-closed idempotency guard with an abandonment-aware auto-allow and an explicit override for the legitimate second-mission-same-name and factory-volume cases (#4033).",
+  "purpose_tldr": "Refuse a duplicate mission create (same slug+type, not abandoned) with an actionable error and an --allow-duplicate escape hatch.",
+  "slug": "mission-create-idempotency-guard-01M2FNZ8",
+  "target_branch": "fix/mission-create-idempotency-4033",
+  "topology": "coord"
+}
