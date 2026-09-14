@@ -23,6 +23,10 @@ The CLI keeps the public shared-package targets: events 9.1.6 and tracker 0.5.2.
 Live Work is not included in this candidate. Stable 4.0.0 launch acceptance remains
 tracked in planning#1999.
 
+### Added
+
+- **`spec-kitty auth login --machine` authenticates CI runners and other unattended environments for hosted operations with no browser, TTY or device-flow approval** (#3277; #4306). It exchanges a ServicePrincipal client ID and secret, read from `SPEC_KITTY_MACHINE_CLIENT_ID` plus `SPEC_KITTY_MACHINE_CLIENT_SECRET` or `SPEC_KITTY_MACHINE_CLIENT_SECRET_FILE`, through the OAuth `client_credentials` grant. Missing or rejected credentials fail closed with one remediation message, never a prompt, and the secret is never printed. `--machine` cannot be combined with `--headless`. `auth status` labels the session `Machine / CI (Client Credentials Grant)`, and `auth doctor` (text and `--json`) reports the additive `session.auth_method` field. Browser and device-flow login remain the default for people; the runner setup and credential rotation runbook is `docs/operations/ci-machine-auth.md`.
+
 ### Fixed
 
 - **An explicitly-set `SPEC_KITTY_SAAS_URL` is a real opinion again, even when its value equals the packaged default `https://team.spec-kitty.ai`** (#4259). The 4.0.0rc1 resolver treated such a value as "no opinion", so a stale `config.toml [sync].server_url` naming the retired first-party app endpoint `https://app.spec-kitty.ai` won resolution and login targeted dead infrastructure. An explicit env value now wins in a whole-process context (login) and fails closed as a split-brain against a different configured target in setup-only contexts, exactly like any other env/config disagreement.
