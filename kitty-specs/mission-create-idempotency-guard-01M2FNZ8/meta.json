@@ -14,9 +14,8 @@
   "accepted_by": "stijn",
   "accepted_from_commit": "dd38c4a42024ad9487e8206bbf6bebaeae6cf772",
   "baseline_merge_commit": "095f69e6388ef58b1fec4ea4799131cc940d13de",
-  "coordination_branch": "kitty/mission-mission-create-idempotency-guard-01M2FNZ8",
   "created_at": "2026-09-14T10:04:00.320801+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Mission-create idempotency guard",
   "mid8": "01M2FNZ8",
   "mission_id": "01M2FNZ8XPXETAA9EBAZJZJDGG",
@@ -29,7 +28,6 @@
   "slug": "mission-create-idempotency-guard-01M2FNZ8",
   "status_phase": "1",
   "target_branch": "fix/mission-create-idempotency-4033",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-09-14T10:09:05.080403+00:00"
 }
