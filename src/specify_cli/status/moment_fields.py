@@ -37,9 +37,13 @@ the one re-threading path that could copy such prose into a new transition
 Pointer classification never uses absence of whitespace as its sole signal:
 legitimate repo-relative paths may contain spaces, so a slash-bearing value
 is treated as a path candidate (whitespace and all), while prose — words with
-whitespace and no separator — is refused. Pointers are NEVER truncated, and
-they carry no byte bound here: they are short by construction once prose is
-excluded.
+whitespace and no separator — is refused. Windows drive-letter
+(``C:\\…``/``C:/…``) and UNC (``\\\\server\\share\\…``) spellings are
+classified as absolute paths BEFORE the scheme arms, so a single-letter drive
+can never masquerade as scheme ``C``, and scheme-shaped values are accepted
+only from the pointer families actually in use. Pointers are NEVER truncated,
+and they carry no byte bound here: they are short by construction once prose
+is excluded.
 """
 
 from __future__ import annotations
@@ -74,8 +78,32 @@ _WHITESPACE_RUN_RE = re.compile(r"[ \t]+")
 # URI-style pointers with an authority (``review-cycle://``, ``feedback://``,
 # ``rev://``, ``approval://``, ``review://``) and synthetic tokens with a bare
 # colon (``review:<WP>``, ``approval:<WP>``, ``auto-approval:<WP>:<date>``).
+# Both arms are ALLOWLISTED to those exact families — never "any scheme that
+# happens to look RFC 3986-shaped": a ``file:///home/…``/``https://…`` URI is
+# an absolute-location pointer in URI clothing, and the error message
+# promises "one of the pointer forms in use", so an unknown scheme is refused
+# with that message instead of riding the wire verbatim.
 _SCHEME_PREFIX_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:")
 _SCHEME_URI_PREFIX_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*://")
+#: URI pointer families actually in use (the scheme IS the pointer grammar).
+_URI_POINTER_SCHEMES = frozenset(
+    {
+        "review-cycle",
+        "feedback",
+        "rev",
+        "approval",
+        "review",
+    }
+)
+#: Synthetic colon-token prefixes actually written by the workflow/orchestrator
+#: paths (``review:<WP>``, ``approval:<WP>``, ``auto-approval:<WP>:<date>``).
+_SYNTHETIC_TOKEN_PREFIXES = frozenset(
+    {
+        "review",
+        "approval",
+        "auto-approval",
+    }
+)
 
 # PR refs: ``PR#42`` plus the verdict-suffixed live form (``PR#42-changes-
 # requested``) and the bare issue/PR number form (``#1298``).
@@ -94,9 +122,14 @@ _SYNTHETIC_SENTINELS = frozenset(
     }
 )
 
-# Windows drive-letter prefix: treated as an absolute path for the
-# repo-relative conversion below, never passed through as-is.
+# Windows drive-letter prefix and UNC device prefix: both are absolute PATH
+# spellings, classified BEFORE the scheme arms in ``validate_review_ref`` (a
+# single-letter drive would otherwise masquerade as scheme ``C``) and treated
+# as an absolute path for the repo-relative conversion below — never passed
+# through as-is.
 _WINDOWS_DRIVE_RE = re.compile(r"^[A-Za-z]:[\\/]")
+#: A leading ``\\`` (or ``//``) names a UNC device path (``\\server\share\…``).
+_UNC_PREFIXES = ("\\", "//")
 
 _POINTER_FORMS_HELP = (
     "one of the pointer forms in use: review-cycle://…, feedback://…, "
@@ -168,10 +201,13 @@ def validate_review_ref(value: str, *, repo_root: Path | None = None) -> str:
 
     Raises:
         ReviewRefValidationError: when *value* is prose (whitespace-bearing
-            words with no path separator), an absolute path outside the
-            repository (or any absolute path when *repo_root* is ``None``),
-            or a relative path whose ``..`` components escape the repository
-            root. The message names the accepted pointer forms.
+            words with no path separator), a scheme-shaped value outside the
+            pointer families in use, an absolute path outside the repository
+            (or any absolute path when *repo_root* is ``None`` — including
+            the Windows drive-letter and UNC spellings, classified as paths
+            before the scheme arms), or a relative path whose ``..``
+            components escape the repository root. The message names the
+            accepted pointer forms.
     """
     if not isinstance(value, str) or not value.strip():
         raise ReviewRefValidationError(f"--review-ref must be a non-empty pointer ({_POINTER_FORMS_HELP}); got an empty value")
@@ -179,21 +215,37 @@ def validate_review_ref(value: str, *, repo_root: Path | None = None) -> str:
 
     if pointer in _SYNTHETIC_SENTINELS:
         return pointer
-    if _SCHEME_URI_PREFIX_RE.match(pointer) is not None:
-        # URI-shaped pointer (review-cycle://, feedback://, rev://,
-        # approval://, review://): the scheme IS the pointer grammar; the
-        # payload is owned by the emitting subsystem, not re-validated here.
-        return pointer
-    if _PR_REF_RE.match(pointer) is not None:
-        return pointer
-    if _SCHEME_PREFIX_RE.match(pointer) is not None:
+    if _WINDOWS_DRIVE_RE.match(pointer) is not None or pointer.startswith(_UNC_PREFIXES):
+        # Windows drive-letter absolute paths (``C:\Users\…``, ``C:/Users/…``)
+        # and UNC device paths (``\\fileserver\share\…``, ``//server/share/…``)
+        # are PATHS, and are classified BEFORE the scheme arms: the
+        # single-letter drive prefix also matches ``_SCHEME_PREFIX_RE`` (scheme
+        # ``C``), so scheme-first ordering would return the absolute local
+        # path verbatim instead of converting or refusing it.
+        return _validated_path_pointer(pointer, repo_root=repo_root)
+    scheme_match = _SCHEME_PREFIX_RE.match(pointer)
+    if scheme_match is not None:
+        scheme = scheme_match.group()[:-1].lower()
+        if _SCHEME_URI_PREFIX_RE.match(pointer) is not None:
+            # URI-shaped pointer (review-cycle://, feedback://, rev://,
+            # approval://, review://): the scheme IS the pointer grammar —
+            # allowlisted to exactly those families; the payload is owned by
+            # the emitting subsystem, not re-validated here.
+            if scheme not in _URI_POINTER_SCHEMES:
+                raise ReviewRefValidationError(
+                    f"--review-ref uses the scheme {scheme!r}, which is not one of the pointer families in use — {_POINTER_FORMS_HELP}. Got: {pointer!r}"
+                )
+            return pointer
         # Synthetic token (review:<WP>, approval:<WP>,
         # auto-approval:<WP>:<date>): the remainder must be one
         # whitespace-free token — a colon followed by prose is still prose.
-        remainder = pointer.split(":", 1)[1]
-        if remainder and not any(ch.isspace() for ch in remainder):
-            return pointer
+        if scheme in _SYNTHETIC_TOKEN_PREFIXES:
+            remainder = pointer.split(":", 1)[1]
+            if remainder and not any(ch.isspace() for ch in remainder):
+                return pointer
         raise ReviewRefValidationError(f"--review-ref must be pointer-shaped, never prose — {_POINTER_FORMS_HELP}. Got: {pointer!r}")
+    if _PR_REF_RE.match(pointer) is not None:
+        return pointer
 
     has_separator = "/" in pointer or "\\" in pointer
     has_whitespace = any(ch.isspace() for ch in pointer)
@@ -222,8 +274,15 @@ def _validated_path_pointer(pointer: str, *, repo_root: Path | None) -> str:
     form (never the absolute local path — that must not reach the wire).
     Any other absolute path, and any relative path whose ``..`` components
     escape the repository root, is refused with a clear message.
+
+    Classification runs on the forward-slash spelling: ``\\fileserver\\share\\…``
+    converted to ``//fileserver/share/…`` is a UNC device path on every
+    platform, while the raw backslash spelling is a *relative* filename on
+    POSIX — classifying the converted form is what keeps the UNC prefix from
+    slipping through the absolute-path refusal on non-Windows hosts.
     """
-    is_absolute = pointer.startswith("/") or _WINDOWS_DRIVE_RE.match(pointer) is not None
+    fwd = pointer.replace("\\", "/")
+    is_absolute = fwd.startswith("/") or _WINDOWS_DRIVE_RE.match(pointer) is not None
     if is_absolute:
         if repo_root is None:
             raise ReviewRefValidationError(
@@ -232,22 +291,35 @@ def _validated_path_pointer(pointer: str, *, repo_root: Path | None) -> str:
                 f"or an explicit safe reference (e.g. review:<WP>) — got: {pointer!r}"
             )
         root = Path(repo_root).resolve()
+        candidate = Path(fwd)
+        if not candidate.is_absolute():
+            # A Windows drive-letter spelling on a non-Windows host
+            # (``C:/Users/…`` is a *relative* path on POSIX): resolve() would
+            # ground it under the process CWD, which can sit inside the repo
+            # root and smuggle the drive path through as a repo-relative-
+            # looking pointer — refuse instead, fail-closed.
+            raise ReviewRefValidationError(
+                "--review-ref points outside the repository root (absolute "
+                "local paths and UNC device paths are never put on the wire); "
+                "use a repo-relative path or an explicit safe reference (e.g. "
+                f"review:<WP>). Got: {pointer!r}"
+            )
         try:
-            resolved = Path(pointer).resolve()
+            resolved = candidate.resolve()
             relative = resolved.relative_to(root)
         except ValueError as exc:
             raise ReviewRefValidationError(
-                "--review-ref points outside the repository root; use a "
-                "repo-relative path or an explicit safe reference (e.g. "
-                f"review:<WP>) — absolute local paths are never put on the wire. "
-                f"Got: {pointer!r}"
+                "--review-ref points outside the repository root (absolute "
+                "local paths and UNC device paths are never put on the wire); "
+                "use a repo-relative path or an explicit safe reference (e.g. "
+                f"review:<WP>). Got: {pointer!r}"
             ) from exc
         return relative.as_posix()
 
     # Relative path: normalise '.' components and refuse '..' traversal that
     # would escape the repository root. Spaces are preserved — never truncated.
     parts: list[str] = []
-    for part in PurePosixPath(pointer.replace("\\", "/")).parts:
+    for part in PurePosixPath(fwd).parts:
         if part in ("", "."):
             continue
         if part == "..":

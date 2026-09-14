@@ -8,12 +8,16 @@ non-printables, whitespace-only normalization (tabs and runs of spaces
 collapse; nothing else does), and the full pointer grammar actually in use —
 scheme pointers, sentinels, synthetic colon tokens, PR refs, bare tokens,
 repo-relative paths WITH spaces, absolute-path conversion, and the
-outside-repo / traversal / no-root refusals. Pointers are never truncated
-and carry no byte bound.
+outside-repo / traversal / no-root refusals — plus the #4327 squad fix-round
+regressions: the scheme grammar is an allowlist (not any RFC 3986 scheme),
+Windows drive-letter paths are classified before the scheme arms (never
+scheme ``C``), and UNC device paths are refused in both slash spellings.
+Pointers are never truncated and carry no byte bound.
 """
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -158,6 +162,30 @@ class TestPointerGrammarInUse:
         long_pointer = "review-cycle://" + "x" * 400 + "/review-cycle-1.md"
         assert validate_review_ref(long_pointer) == long_pointer
 
+    def test_scheme_grammar_is_allowlisted_not_any_rfc3986_scheme(self) -> None:
+        # The five documented URI families pass (case-insensitively — scheme
+        # comparison follows RFC 3986); any OTHER `://` scheme is refused with
+        # the pointer-forms message, because `file:///home/…`/`https://…` are
+        # absolute-location pointers in URI clothing (#4327 squad fix round).
+        assert validate_review_ref("Review-Cycle://034-feature/WP01/rc-1.md") == "Review-Cycle://034-feature/WP01/rc-1.md"
+        for pointer in (
+            "file:///home/user/secret/notes.txt",
+            "https://internal.example/secret",
+            "http://example.com/x",
+            "ftp://files.internal/secret.txt",
+        ):
+            with pytest.raises(ReviewRefValidationError, match="pointer forms"):
+                validate_review_ref(pointer)
+
+    def test_colon_token_grammar_is_allowlisted_to_the_documented_prefixes(self) -> None:
+        # `review:`/`approval:`/`auto-approval:` are the synthetic tokens in
+        # use; any other bare-colon scheme (`javascript:…`, `data:…`) is
+        # refused, never passed verbatim on the strength of scheme shape
+        # alone (#4327 squad fix round).
+        for pointer in ("javascript:alert(1)", "data:text/plain,hello", "mailto:me@example.com"):
+            with pytest.raises(ReviewRefValidationError, match="pointer forms"):
+                validate_review_ref(pointer)
+
 
 class TestProseRefusal:
     def test_sentence_prose_is_refused_naming_the_pointer_forms(self) -> None:
@@ -205,3 +233,47 @@ class TestAbsolutePathHandling:
 
     def test_dot_components_are_normalized_away(self) -> None:
         assert validate_review_ref("./kitty-specs/034/review-cycle-1.md", repo_root=Path("/repo")) == "kitty-specs/034/review-cycle-1.md"
+
+    def test_windows_drive_letter_paths_are_paths_never_scheme_c(self, tmp_path: Path) -> None:
+        # `C:` (and lowercase `c:`) match the RFC 3986 scheme shape, so the
+        # drive-letter prefix is classified BEFORE the scheme arms: both
+        # spellings are absolute paths — refused without a root, converted
+        # when genuinely in-repo — never returned verbatim (#4327 squad fix
+        # round).
+        for pointer in ("C:\\Users\\me\\secret.txt", "C:/Users/me/secret.txt", "c://foo"):
+            with pytest.raises(ReviewRefValidationError, match="no repository root"):
+                validate_review_ref(pointer)
+            with pytest.raises(ReviewRefValidationError, match="outside the repository"):
+                validate_review_ref(pointer, repo_root=tmp_path)
+
+    def test_windows_drive_letter_path_inside_the_repo_becomes_repo_relative(self, tmp_path: Path) -> None:
+        # On Windows the in-repo drive-letter spelling converts like any
+        # other absolute path; on POSIX `C:/…` is not an OS-absolute path,
+        # so the converter refuses it fail-closed instead of letting
+        # resolve() ground it under the process CWD (which can sit inside
+        # the repo and smuggle the drive path through as repo-relative).
+        resolved = tmp_path.resolve()
+        if sys.platform == "win32":
+            artifact = resolved / "kitty-specs" / "review-cycle-1.md"
+            assert validate_review_ref(str(artifact), repo_root=resolved) == "kitty-specs/review-cycle-1.md"
+        else:
+            with pytest.raises(ReviewRefValidationError, match="outside the repository"):
+                validate_review_ref("C:/Users/me/secret.txt", repo_root=resolved)
+
+    def test_unc_device_paths_are_refused_in_both_spellings(self, tmp_path: Path) -> None:
+        # `\\fileserver\share\…` starts with neither `/` nor a drive letter,
+        # but classification runs on the forward-slash spelling
+        # (`//fileserver/share/…`), so both forms are absolute device paths —
+        # an internal hostname never reaches the wire, with or without a
+        # resolved root (#4327 squad fix round).
+        for pointer in ("\\\\fileserver\\share\\secret.txt", "//fileserver/share/secret.txt"):
+            with pytest.raises(ReviewRefValidationError, match="no repository root"):
+                validate_review_ref(pointer)
+            with pytest.raises(ReviewRefValidationError, match="outside the repository"):
+                validate_review_ref(pointer, repo_root=tmp_path)
+
+    def test_leading_backslash_path_is_classified_absolute_not_relative(self) -> None:
+        # `\Users\me\secret.txt` converts to `/Users/me/secret.txt`: an
+        # absolute path, never a repo-relative candidate.
+        with pytest.raises(ReviewRefValidationError, match="no repository root"):
+            validate_review_ref("\\Users\\me\\secret.txt")
