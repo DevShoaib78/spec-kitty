@@ -306,7 +306,55 @@ def _normalise_evidence(evidence: Any) -> Any:
 
 # SUNSET: remove when #4327 lands -- the dedicated, CLI-validated inline
 # ``summary`` attr replaces this interim bounding of ``review_ref``.
+#
+# Structural pointer/prose classification (09:57 queue feedback on PR #4319:
+# "Never truncate pointers, including legitimate path references containing
+# spaces"). Whitespace presence alone cannot make this call: ``--approval-ref``
+# is free-form, so a reference may legitimately contain spaces.
 _PROSE_VALUE_RE = re.compile(r"\s")
+
+#: A URI scheme prefix — ``review-cycle://``, ``feedback://``, ``https://`` …
+#: The events contract documents ``review_ref`` as a "URI-shaped pointer to
+#: the review feedback artifact", so a scheme-prefixed value is a pointer
+#: whatever follows the scheme.
+_POINTER_URI_RE = re.compile(r"\A[A-Za-z][A-Za-z0-9+.\-]*://")
+
+#: Path separators: a reference into a tree (``reviews/wp01  final.md``)
+#: legitimately contains spaces, so a path value is a pointer even though it
+#: is not a single token.
+_PATH_SEPARATOR_RE = re.compile(r"[/\\]")
+
+#: Sentence punctuation no reference shape carries but routine review prose
+#: does. ``.`` is deliberately absent (``review-cycle-2.md``, ``e.g.``); a
+#: colon counts only when it opens a clause (``Note: this``), never inside a
+#: token (``auto-approval:WP01:20260914``).
+_PROSE_PUNCTUATION_RE = re.compile(r"[,;!?]|—|–|:(?=\s|\Z)")
+
+
+def _is_pointer_shaped(value: str) -> bool:
+    """Structural pointer/prose test for the interim ``review_ref`` bounding.
+
+    Pointer-shaped, in order:
+
+    * entirely whitespace-free (``PR#42``, ``auto-approval:WP01:20260914``,
+      a plain ``review-cycle://`` URI) — the only shape the first fix round
+      recognized;
+    * a URI scheme prefix;
+    * a path reference: carries a path separator and no sentence punctuation,
+      so ``reviews/wp01  final.md`` is a reference with a legitimate space,
+      not a sentence to collapse or cut.
+
+    Deliberately pointer-biased: prose misread as a pointer only degrades to
+    the pre-#3954 loud drop (the codec still fails closed on the over-bound
+    or non-printable value, with this bridge's logged reason), while a
+    pointer misread as prose is exactly the silently-broken broadcast the
+    ratified review called "silently worse than a dropped moment".
+    """
+    if not _PROSE_VALUE_RE.search(value):
+        return True
+    if _POINTER_URI_RE.match(value):
+        return True
+    return bool(_PATH_SEPARATOR_RE.search(value)) and not _PROSE_PUNCTUATION_RE.search(value)
 
 
 def _truncate_attr_value(value: str, max_bytes: int = ZEITGEIST_ATTRS_MAX_BYTES) -> str:
@@ -347,17 +395,20 @@ def _bounded_review_ref(review_ref: Any) -> Any:
     the fan-out already wrote; only this volatile projection rides bounded,
     visibly truncated.
 
-    Two shapes, two rules (2026-09-14 ratified direction, PR #4319 review):
+    Two shapes, two rules (2026-09-14 ratified direction, PR #4319 review +
+    the 09:57 queue feedback):
 
-    * **Prose** (any whitespace): collapse internal whitespace/newlines to
-      single spaces first — a newline is non-printable to the codec, so a
-      multi-line note would otherwise drop the moment even under the byte
-      bound — then truncate. Same one-line normalisation the codec applies
-      to its derived summaries.
-    * **Pointer-shaped** (no whitespace at all, e.g. a ``review-cycle://``
-      URI): pass through *unchanged*, even over the bound, so the codec
-      still fails closed on it — a truncated URI would be a broken
-      reference, silently worse than a dropped moment.
+    * **Prose** (sentence-shaped whitespace-containing value — the review
+      note ``move-task`` copies into ``review_ref`` pending #4327): collapse
+      internal whitespace/newlines to single spaces first — a newline is
+      non-printable to the codec, so a multi-line note would otherwise drop
+      the moment even under the byte bound — then truncate. Same one-line
+      normalisation the codec applies to its derived summaries.
+    * **Pointer-shaped** (:func:`_is_pointer_shaped` — a URI, a single
+      token, or a path reference *even one containing spaces*): pass through
+      *unchanged*, even over the bound, so the codec still fails closed on
+      it — a truncated or whitespace-collapsed reference would be a broken
+      pointer that broadcasts, silently worse than a dropped moment.
 
     Non-strings pass through untouched (``None`` included); a value that
     collapses to nothing (whitespace-only, which every producer strips
@@ -365,8 +416,8 @@ def _bounded_review_ref(review_ref: Any) -> Any:
     """
     if not isinstance(review_ref, str):
         return review_ref
-    if not _PROSE_VALUE_RE.search(review_ref):
-        return review_ref  # pointer-shaped: never truncate a URI
+    if _is_pointer_shaped(review_ref):
+        return review_ref  # a reference rides verbatim, never truncated or collapsed
     one_line = " ".join(review_ref.split())
     if not one_line:
         return review_ref

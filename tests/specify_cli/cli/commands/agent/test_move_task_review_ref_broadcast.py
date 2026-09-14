@@ -299,3 +299,161 @@ def test_move_task_approval_with_short_note_rides_verbatim(
     approved = [e for e in read_events(feature_dir) if e.wp_id == _WP_ID and e.to_lane is Lane.APPROVED]
     assert len(approved) == 1
     assert approved[0].review_ref == note
+
+
+# --- #3954 breadth (2026-09-14 amendment): every valid transition, not approval alone
+
+
+def _run_move_task(tmp_path: Path, *, to: str, note: str, done_override_reason: str | None = None) -> Path:
+    """Drive the real ``_do_move_task`` against the real transactional emit leg.
+
+    Shared scaffold for the breadth e2e cases: same coord router, same port
+    fakes, same externalities patched as the approval tests above (review
+    currency guidance and the subtask roster are outside the emit path).
+    """
+    feature_dir = _build_wp_file(tmp_path, _MISSION, _WP_ID)
+    _seed_wp_in_review(feature_dir, _WP_ID)
+    if done_override_reason is not None:
+        # The completion path resolves the execution workspace, which needs a
+        # lanes manifest (``MissingLanesError`` otherwise) — same fixture shape
+        # as ``test_move_task_durability.py``'s lanes.json.
+        import json as _json
+
+        (feature_dir / "lanes.json").write_text(
+            _json.dumps(
+                {
+                    "version": 1,
+                    "mission_slug": _MISSION,
+                    "mission_branch": "main",
+                    "target_branch": "main",
+                    "lanes": [{"lane_id": "lane-a", "wp_ids": [_WP_ID]}],
+                    "computed_at": "2026-09-14T00:00:00+00:00",
+                    "computed_from": "tasks.md",
+                }
+            ),
+            encoding="utf-8",
+        )
+    coord = _RealEmitCoordRouter(write_dir=feature_dir)
+    ports = TasksPorts(fs=FakeFsReader(default_planning_dir=feature_dir), coord=coord, git=FakeGitOps(), render=FakeRender())
+
+    with setup_mocked_env(
+        tmp_path,
+        mission_slug=_MISSION,
+        target_branch="wip-lane",
+        extra_patches={
+            "_validate_ready_for_review": (True, []),
+            "_check_unchecked_subtasks": [],
+        },
+    ):
+        _do_move_task(
+            _MoveTaskArgs(
+                task_id=_WP_ID,
+                to=to,
+                mission=_MISSION,
+                agent=None,
+                assignee=None,
+                shell_pid=None,
+                note=note,
+                review_feedback_file=None,
+                approval_ref=None,
+                reviewer="reviewer-renata",
+                self_review_fallback=False,
+                intended_reviewer=None,
+                reviewer_failure_reason=None,
+                done_override_reason=done_override_reason,
+                force=False,
+                tracker_ref=None,
+                skip_review_artifact_check=False,
+                auto_commit=False,
+                json_output=True,
+            ),
+            ports=ports,
+        )
+    return feature_dir
+
+
+def test_move_task_done_with_long_note_broadcasts_one_bounded_moment_per_hop(
+    tmp_path: Path,
+    _faked_transport: OfferRecorder,
+) -> None:
+    """Completion (``--to done``): a multi-hop command legitimately emits TWO
+    events (``in_review -> approved -> done``), and each emitted event offers
+    exactly one bounded moment. The approved hop carries the note as its
+    ``review_ref`` (``effective_approval_ref`` via ``_mt_approval_facts``) and
+    broadcasts it bounded; the done hop broadcasts too. The canonical status
+    log keeps the full note on the approved event — Zeitgeist carries NOW, Git
+    carries DONE."""
+    feature_dir = _run_move_task(
+        tmp_path,
+        to="done",
+        note=_LONG_NOTE,
+        # The fake git port cannot verify merge ancestry, so the done-ancestry
+        # guard is satisfied the way an operator satisfies it in a workspace
+        # without a verifiable merge — an explicit override reason.
+        done_override_reason="test: merge ancestry not verifiable with the fake git port",
+    )
+
+    moments = _faked_transport.moment_offers()
+    # One publish offer per emitted event (two hops), each with its presence
+    # frame — no drops, no duplicates, no third moment.
+    assert _faked_transport.summaries() == [
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+    ]
+    lanes = [args["attrs"]["to_lane"] for _op, args in moments]
+    assert lanes == ["approved", "done"]
+
+    wire_ref = moments[0][1]["attrs"]["review_ref"]
+    assert "\n" not in wire_ref
+    assert len(wire_ref.encode("utf-8")) <= 240
+    assert wire_ref.endswith("…")
+    one_line = " ".join(_LONG_NOTE.split())
+    expected_prefix = one_line.encode("utf-8")[: 240 - len("…".encode())].decode("utf-8", errors="ignore")
+    assert wire_ref == expected_prefix + "…"
+
+    # Git carries DONE: the full note stays on the approved event (and its
+    # structured review result); the done hop is the completion record.
+    approved = [e for e in read_events(feature_dir) if e.wp_id == _WP_ID and e.to_lane is Lane.APPROVED]
+    assert len(approved) == 1
+    assert approved[0].review_ref == _LONG_NOTE.strip()
+    assert approved[0].review_result is not None
+    assert approved[0].review_result.reference == _LONG_NOTE.strip()
+    done = [e for e in read_events(feature_dir) if e.wp_id == _WP_ID and e.to_lane is Lane.DONE]
+    assert len(done) == 1
+
+
+def test_move_task_rejection_with_long_note_broadcasts_bounded_moment(
+    tmp_path: Path,
+    _faked_transport: OfferRecorder,
+) -> None:
+    """Rejection/rework (``--to doing``): ``in_review -> in_progress`` is the
+    FSM-valid rework edge whose ``review_ref`` is REQUIRED (``validate.py``'s
+    review-ref check) and is the operator's note itself (``_mt_plan_review_
+    result`` threads ``st.note_text`` into the reference). The rework moment
+    broadcasts with the bounded one-line projection instead of being dropped
+    at the 240-byte bound; the canonical log keeps the full note on both
+    ``review_ref`` and ``review_result.reference``."""
+    feature_dir = _run_move_task(tmp_path, to="doing", note=_LONG_NOTE)
+
+    assert _faked_transport.summaries() == [
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+    ]
+    _op, args = _faked_transport.moment_offers()[0]
+    assert args["attrs"]["to_lane"] == "in_progress"
+    wire_ref = args["attrs"]["review_ref"]
+    assert "\n" not in wire_ref
+    assert len(wire_ref.encode("utf-8")) <= 240
+    assert wire_ref.endswith("…")
+    one_line = " ".join(_LONG_NOTE.split())
+    expected_prefix = one_line.encode("utf-8")[: 240 - len("…".encode())].decode("utf-8", errors="ignore")
+    assert wire_ref == expected_prefix + "…"
+
+    reworked = [e for e in read_events(feature_dir) if e.wp_id == _WP_ID and e.to_lane is Lane.IN_PROGRESS]
+    assert len(reworked) == 1
+    assert reworked[0].review_ref == _LONG_NOTE.strip()
+    assert reworked[0].review_result is not None
+    assert reworked[0].review_result.verdict == "changes_requested"
+    assert reworked[0].review_result.reference == _LONG_NOTE.strip()

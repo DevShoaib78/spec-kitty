@@ -581,6 +581,210 @@ def test_bounded_review_ref_passthrough_shapes() -> None:
     assert bridge._bounded_review_ref("   \n\t ") == "   \n\t "
 
 
+# --- #3954 breadth: pointers with spaces are pointers, not prose -------------
+#
+# 09:57 queue feedback on PR #4319: "Never truncate pointers, including
+# legitimate path references containing spaces." ``--approval-ref`` is a
+# documented free-form option (``tasks.py``, "e.g., PR#42") whose value becomes
+# the wire ``review_ref``, so whitespace presence alone cannot classify a value
+# as prose — the classifier must be structural (``_is_pointer_shaped``).
+
+_SPACE_POINTER = "reviews/wp01  final.md"  # a real path reference, double space intact
+
+
+def test_space_containing_pointer_review_ref_rides_verbatim(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+) -> None:
+    """A path reference that legitimately contains spaces rides byte-identical:
+    no whitespace collapse, no truncation marker — ``reviews/wp01  final.md``
+    stays ``reviews/wp01  final.md`` on the wire, double space and all."""
+    recorder = OfferRecorder().install(monkeypatch)
+    assert bridge._is_pointer_shaped(_SPACE_POINTER)
+
+    _fire_transition(
+        from_lane="for_review",
+        to_lane="approved",
+        metadata=_transition_metadata(
+            review_ref=_SPACE_POINTER,
+            evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": _SPACE_POINTER}},
+        ),
+    )
+
+    _op, args = recorder.moment_offers()[0]
+    assert args["attrs"]["review_ref"] == _SPACE_POINTER
+
+
+def test_overbound_space_containing_pointer_fails_closed_not_truncated(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A space-containing pointer over the byte bound is NEVER cut to fit: a
+    240-byte prefix of a 305-byte path is a broken reference that broadcasts —
+    silently worse than the loud drop the codec's fail-closed bound has always
+    produced. The value rides verbatim so the codec refuses it exactly as
+    ``main`` does today."""
+    recorder = OfferRecorder().install(monkeypatch)
+    pointer = "reviews/" + "deeply nested directory structure with a long name " * 5 + "final.md"
+    assert len(pointer.encode("utf-8")) > 240  # the squad-verified 305-byte shape
+    assert bridge._is_pointer_shaped(pointer)
+
+    with caplog.at_level(logging.WARNING):
+        _fire_transition(
+            from_lane="for_review",
+            to_lane="approved",
+            metadata=_transition_metadata(
+                review_ref=pointer,
+                evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": pointer}},
+            ),
+        )
+
+    assert recorder.moment_offers() == []  # loud drop, never a truncated broadcast
+    assert "not broadcast" in caplog.text
+
+
+# --- #3954 breadth: every valid WPStatusChanged path carrying legacy prose ---
+#
+# The amended issue (2026-09-14 breadth clarification) covers the shared
+# broadcast seam for EVERY otherwise-valid transition carrying a legacy prose
+# review_ref — not approval alone. Approval is pinned above; the three cases
+# below pin completion, rejection/rework, and direct status emission through
+# ``emit_status_transition`` with valid FSM fixtures.
+
+
+def test_completion_transition_with_long_prose_review_ref_broadcasts_bounded(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+) -> None:
+    """``--to done`` also carries ``effective_approval_ref`` (the note, via
+    ``_mt_approval_facts``) as its ``review_ref``: the completion moment
+    broadcasts with the same bounded, one-line, visibly-truncated projection —
+    the bounding is per-value at the shared seam, not approval-lane-specific."""
+    recorder = OfferRecorder().install(monkeypatch)
+    note = "Done — the merge ancestry is verified and the review is recorded. " + "Completion padding past the bound. " * 7
+    assert len(note.encode("utf-8")) > 240
+
+    _fire_transition(
+        from_lane="approved",
+        to_lane="done",
+        metadata=_transition_metadata(
+            review_ref=note,
+            evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "pr-1"}},
+        ),
+    )
+
+    assert [op for op, _args in recorder.moment_offers()] == ["event.publish"]
+    _op, args = recorder.moment_offers()[0]
+    assert args["attrs"]["to_lane"] == "done"
+    wire_ref = args["attrs"]["review_ref"]
+    assert "\n" not in wire_ref
+    assert len(wire_ref.encode("utf-8")) <= 240
+    assert wire_ref.endswith("…")
+
+
+def test_rework_rejection_with_long_prose_review_ref_broadcasts_bounded(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+) -> None:
+    """``for_review -> in_progress`` is the one transition where ``review_ref``
+    is REQUIRED (``validate.py``'s review-ref check) and routinely long prose —
+    F-46's exact twin on the rework path. The rejection moment broadcasts with
+    the same bounded projection instead of being dropped whole."""
+    recorder = OfferRecorder().install(monkeypatch)
+    note = (
+        "Rework — the transition table misses the rollback edge, the reducer "
+        "drops out-of-order events, and the suite is red. " + "Rejection padding past the bound. " * 7
+    )
+    assert len(note.encode("utf-8")) > 240
+
+    _fire_transition(
+        from_lane="for_review",
+        to_lane="in_progress",
+        metadata=_transition_metadata(review_ref=note),
+    )
+
+    assert [op for op, _args in recorder.moment_offers()] == ["event.publish"]
+    _op, args = recorder.moment_offers()[0]
+    assert args["attrs"]["to_lane"] == "in_progress"
+    wire_ref = args["attrs"]["review_ref"]
+    assert "\n" not in wire_ref
+    assert len(wire_ref.encode("utf-8")) <= 240
+    assert wire_ref.endswith("…")
+
+
+def test_direct_emit_status_transition_rejection_with_long_prose_review_ref(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+) -> None:
+    """Direct ``emit_status_transition`` emission (valid FSM fixtures): the
+    FSM-valid rework edge ``in_review -> in_progress`` carries the review note
+    as BOTH ``review_ref`` and ``review_result.reference`` (the producer's own
+    shape — ``_mt_plan_review_result`` threads ``st.note_text`` into the
+    reference). Exactly one publish offer per emitted event, bounded prose on
+    the wire, full note durable in the canonical status log."""
+    from kernel.clock import now_utc_iso
+
+    from specify_cli.status.models import ReviewResult, StatusEvent
+    from specify_cli.status.store import append_event, read_events
+
+    recorder = OfferRecorder().install(monkeypatch)
+    feature_dir = tmp_path / "kitty-specs" / "demo-mission"
+    feature_dir.mkdir(parents=True)
+    note = "Rework — the review found the reducer drops out-of-order events. " + "Direct emission padding past the bound. " * 7
+    assert len(note.encode("utf-8")) > 240
+    # Seed the WP into in_review with a valid FSM edge (for_review -> in_review),
+    # exactly the way the sibling e2e file does — except the seed timestamp is
+    # clock-derived, not a literal: this test also calls ``emit_status_transition``
+    # (a now()-stamping entry point), and a hard-coded ``at=`` beside it is the
+    # exact absolute/relative timestamp MIXTURE ``tests/architectural/
+    # test_no_absolute_event_timestamp_mixture.py`` bans (#3157's defect class).
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"seed-{_EVENT_ID}",
+            mission_slug="demo-mission",
+            wp_id="WP01",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_REVIEW,
+            at=now_utc_iso(),
+            actor="reviewer",
+            force=False,
+            execution_mode="worktree",
+        ),
+    )
+
+    emit_status_transition(
+        TransitionRequest(
+            feature_dir=feature_dir,
+            mission_slug="demo-mission",
+            wp_id="WP01",
+            to_lane="in_progress",
+            actor="reviewer",
+            reason="rework",
+            review_ref=note,
+            review_result=ReviewResult(reviewer="reviewer", verdict="rejected", reference=note),
+        )
+    )
+
+    assert recorder.summaries() == [
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+    ]
+    _op, args = recorder.moment_offers()[0]
+    assert args["attrs"]["to_lane"] == "in_progress"
+    wire_ref = args["attrs"]["review_ref"]
+    assert len(wire_ref.encode("utf-8")) <= 240
+    assert wire_ref.endswith("…")
+    # Git carries DONE: the canonical event keeps the full untruncated note.
+    persisted = [e for e in read_events(feature_dir) if e.wp_id == "WP01" and e.to_lane is Lane.IN_PROGRESS]
+    assert len(persisted) == 1
+    assert persisted[0].review_ref == note
+    assert persisted[0].review_result is not None
+    assert persisted[0].review_result.reference == note
+
+
 # ---------------------------------------------------------------------------
 # Slot 1: WP lane transitions -> WPStatusChanged
 # ---------------------------------------------------------------------------
