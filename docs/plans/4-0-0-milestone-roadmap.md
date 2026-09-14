@@ -1,6 +1,6 @@
 ---
 title: 4.0.0 Milestone — Roadmap
-description: 'Operator-facing roadmap for the active 4.0.0 cycle: the four goal themes (stability, maturity, extensibility, Team Kitty enablers), the epic dependency spine, per-theme progress and exit criteria, and watch items — at rc2/rc3 with the structural/debt half riding as a post-rc tail.'
+description: 'Operator-facing roadmap for the active 4.0.0 cycle: the four goal themes, epic dependency spine, per-theme progress and exit criteria, and watch items.'
 doc_status: active
 type: explanation
 audience: docs/context/audience/internal/maintainer.md
