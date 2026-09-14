@@ -644,6 +644,76 @@ def test_overbound_space_containing_pointer_fails_closed_not_truncated(
     assert "not broadcast" in caplog.text
 
 
+# --- #3954 fix round 3: prose that names a source file is prose ----------------
+#
+# Squad pass 2 (MAJOR @3c538ac44, zeitgeist_bridge.py:357): the path arm of
+# ``_is_pointer_shaped`` claimed ordinary review prose that mentions a path —
+# a note whose only punctuation is a full stop and which names a file was
+# classified pointer and dropped whole, un-fixing ratified condition 1 for that
+# note shape and leaving F-46 in place for it. Two signals close it: a value
+# containing a line break is prose outright (a newline can never survive the
+# codec, so collapsing is strictly better than the drop pass-through produces),
+# and a full stop that opens a clause (followed by whitespace) is a sentence
+# break — while a path's own trailing ``.`` (``final.md``) is not.
+
+_PROSE_WITH_PATH_NOTE = "Approved.\nChecked src/specify_cli/status/zeitgeist_bridge.py and the tests pass"
+
+
+def test_prose_note_naming_a_source_file_broadcasts_collapsed(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+) -> None:
+    """A multi-line review note that names a source file is prose, not a
+    pointer: it broadcasts as the collapsed one-liner (ratified condition 1
+    holds for this note class too), never drops on its own newline."""
+    recorder = OfferRecorder().install(monkeypatch)
+    assert not bridge._is_pointer_shaped(_PROSE_WITH_PATH_NOTE)
+
+    _fire_transition(
+        from_lane="for_review",
+        to_lane="approved",
+        metadata=_transition_metadata(
+            review_ref=_PROSE_WITH_PATH_NOTE,
+            evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": _PROSE_WITH_PATH_NOTE}},
+        ),
+    )
+
+    _op, args = recorder.moment_offers()[0]
+    wire_ref = args["attrs"]["review_ref"]
+    assert wire_ref == " ".join(_PROSE_WITH_PATH_NOTE.split())
+    assert len(wire_ref.encode("utf-8")) <= 240
+
+
+def test_overbound_prose_note_naming_a_source_file_broadcasts_bounded(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+) -> None:
+    """The same note shape past the byte bound is truncated and broadcast —
+    F-46 stays fixed for prose that names a file, instead of the whole-moment
+    drop the pointer misclassification produced (squad pass 2 repro)."""
+    recorder = OfferRecorder().install(monkeypatch)
+    note = ("Approved. Verified src/specify_cli/status/zeitgeist_bridge.py bounds the value. " + "Padding past the bound. " * 8).strip()
+    assert len(note.encode("utf-8")) > 240
+    assert not bridge._is_pointer_shaped(note)
+
+    _fire_transition(
+        from_lane="for_review",
+        to_lane="approved",
+        metadata=_transition_metadata(
+            review_ref=note,
+            evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": note}},
+        ),
+    )
+
+    _op, args = recorder.moment_offers()[0]
+    wire_ref = args["attrs"]["review_ref"]
+    assert len(wire_ref.encode("utf-8")) <= 240
+    assert wire_ref.endswith("…")
+    one_line = " ".join(note.split())
+    expected_prefix = one_line.encode("utf-8")[: 240 - len("…".encode())].decode("utf-8", errors="ignore")
+    assert wire_ref == expected_prefix + "…"
+
+
 # --- #3954 breadth: every valid WPStatusChanged path carrying legacy prose ---
 #
 # The amended issue (2026-09-14 breadth clarification) covers the shared

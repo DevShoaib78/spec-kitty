@@ -324,11 +324,20 @@ _POINTER_URI_RE = re.compile(r"\A[A-Za-z][A-Za-z0-9+.\-]*://")
 #: is not a single token.
 _PATH_SEPARATOR_RE = re.compile(r"[/\\]")
 
+#: A line break. Prose outright, never a pointer shape: a newline is
+#: non-printable to the codec, so a value carrying one can never ride verbatim —
+#: collapsing it is strictly better than the loud drop a pass-through produces.
+_LINE_BREAK_RE = re.compile(r"[\r\n]")
+
 #: Sentence punctuation no reference shape carries but routine review prose
-#: does. ``.`` is deliberately absent (``review-cycle-2.md``, ``e.g.``); a
-#: colon counts only when it opens a clause (``Note: this``), never inside a
-#: token (``auto-approval:WP01:20260914``).
-_PROSE_PUNCTUATION_RE = re.compile(r"[,;!?]|—|–|:(?=\s|\Z)")
+#: does. ``.`` is deliberately absent at end-of-value (``review-cycle-2.md``,
+#: ``reviews/wp01  final.md`` — a path legitimately ends in a bare ``.``); a
+#: full stop counts only when it opens a clause (``Approved. Checked …``,
+#: ``…/zeitgeist_bridge.py and the tests pass`` — a review note naming a
+#: source file is prose, not a pointer). A colon counts only when it opens a
+#: clause (``Note: this``), never inside a token
+#: (``auto-approval:WP01:20260914``).
+_PROSE_PUNCTUATION_RE = re.compile(r"[,;!?]|—|–|:(?=\s|\Z)|\.(?=\s)")
 
 
 def _is_pointer_shaped(value: str) -> bool:
@@ -340,9 +349,16 @@ def _is_pointer_shaped(value: str) -> bool:
       a plain ``review-cycle://`` URI) — the only shape the first fix round
       recognized;
     * a URI scheme prefix;
-    * a path reference: carries a path separator and no sentence punctuation,
-      so ``reviews/wp01  final.md`` is a reference with a legitimate space,
-      not a sentence to collapse or cut.
+    * a path reference: carries a path separator and no clause-opening
+      sentence punctuation, so ``reviews/wp01  final.md`` is a reference with
+      a legitimate space, not a sentence to collapse or cut — while
+      ``Approved. Checked …/bridge.py and the tests pass`` (a full stop
+      opening a clause) is a review note that names a file, i.e. prose.
+
+    Any value containing a line break is prose outright, before those arms: a
+    newline can never survive the codec, so treating it as a pointer only
+    produces the pre-#3954 loud drop, while the prose arm collapses it into a
+    bounded one-liner that still broadcasts.
 
     Deliberately pointer-biased: prose misread as a pointer only degrades to
     the pre-#3954 loud drop (the codec still fails closed on the over-bound
@@ -352,6 +368,8 @@ def _is_pointer_shaped(value: str) -> bool:
     """
     if not _PROSE_VALUE_RE.search(value):
         return True
+    if _LINE_BREAK_RE.search(value):
+        return False
     if _POINTER_URI_RE.match(value):
         return True
     return bool(_PATH_SEPARATOR_RE.search(value)) and not _PROSE_PUNCTUATION_RE.search(value)
