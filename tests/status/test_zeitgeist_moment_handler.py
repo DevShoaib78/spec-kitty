@@ -476,7 +476,9 @@ def test_overlong_review_ref_truncates_on_a_codepoint_boundary(monkeypatch: pyte
     the truncated attr never carries a split codepoint and still fits the
     byte budget."""
     recorder = OfferRecorder().install(monkeypatch)
-    note = "é" * 200  # 400 UTF-8 bytes; byte 237 cuts inside a 2-byte é
+    # Prose (whitespace present) so the bounding applies; the é-run's 400
+    # UTF-8 bytes put byte 237 inside a 2-byte é, past the trailing word.
+    note = "é" * 200 + " end"
 
     _fire_transition(
         from_lane="for_review",
@@ -491,6 +493,92 @@ def test_overlong_review_ref_truncates_on_a_codepoint_boundary(monkeypatch: pyte
     wire_ref = args["attrs"]["review_ref"]
     assert wire_ref == "é" * 118 + "…"
     assert len(wire_ref.encode("utf-8")) == 239
+
+
+def test_multiline_review_ref_is_collapsed_not_dropped(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """A multi-line note under the byte bound still drops the moment without
+    the collapse: a newline is non-printable to the codec. The bridge
+    onelines prose before bounding (PR #4319 review, condition 1)."""
+    recorder = OfferRecorder().install(monkeypatch)
+    note = "Approved.\nCovers the rollback edge,\nthe reducer,\nand the suite."
+
+    _fire_transition(
+        from_lane="for_review",
+        to_lane="approved",
+        metadata=_transition_metadata(
+            review_ref=note,
+            evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "pr-1"}},
+        ),
+    )
+
+    assert [op for op, _args in recorder.moment_offers()] == ["event.publish"]
+    _op, args = recorder.moment_offers()[0]
+    wire_ref = args["attrs"]["review_ref"]
+    # One line, no truncation marker (it fits), whitespace collapsed exactly
+    # the way the codec collapses its derived summaries.
+    assert wire_ref == "Approved. Covers the rollback edge, the reducer, and the suite."
+    assert "…" not in wire_ref
+
+
+def test_long_multiline_review_ref_collapses_then_truncates(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """The F-46 shape exactly: a long, multi-line approval note. Collapse
+    first, then bound — the wire value is one line, ≤240 bytes, visibly
+    truncated."""
+    recorder = OfferRecorder().install(monkeypatch)
+    note = "Approved — LGTM.\n" + "Solid work on the reducer.\n" * 12
+
+    _fire_transition(
+        from_lane="for_review",
+        to_lane="approved",
+        metadata=_transition_metadata(
+            review_ref=note,
+            evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "pr-1"}},
+        ),
+    )
+
+    assert [op for op, _args in recorder.moment_offers()] == ["event.publish"]
+    _op, args = recorder.moment_offers()[0]
+    wire_ref = args["attrs"]["review_ref"]
+    assert "\n" not in wire_ref
+    assert len(wire_ref.encode("utf-8")) <= 240
+    assert wire_ref.endswith("…")
+    one_line = " ".join(note.split())
+    expected_prefix = one_line.encode("utf-8")[: 240 - len("…".encode())].decode("utf-8", errors="ignore")
+    assert wire_ref == expected_prefix + "…"
+
+
+def test_pointer_shaped_overbound_review_ref_still_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A pointer-shaped ref (no whitespace at all — a URI) is never
+    truncated: a cut URI is a broken reference, silently worse than a
+    dropped moment. It passes through untouched so the codec fails closed on
+    it exactly as before (PR #4319 review, condition 2)."""
+    recorder = OfferRecorder().install(monkeypatch)
+    pointer = "review-cycle://" + "x" * 300  # over the bound, zero whitespace
+
+    with caplog.at_level(logging.WARNING):
+        _fire_transition(
+            from_lane="for_review",
+            to_lane="approved",
+            metadata=_transition_metadata(
+                review_ref=pointer,
+                evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "pr-1"}},
+            ),
+        )
+
+    assert recorder.moment_offers() == []  # the codec still refuses it
+    assert "not broadcast" in caplog.text
+
+
+def test_bounded_review_ref_passthrough_shapes() -> None:
+    """The bounding only ever rewrites prose: non-strings and values that
+    collapse to nothing pass through untouched for the codec to judge."""
+    assert bridge._bounded_review_ref(None) is None
+    assert bridge._bounded_review_ref(42) == 42
+    assert bridge._bounded_review_ref("   \n\t ") == "   \n\t "
 
 
 # ---------------------------------------------------------------------------

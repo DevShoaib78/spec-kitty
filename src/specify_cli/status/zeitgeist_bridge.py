@@ -304,6 +304,11 @@ def _normalise_evidence(evidence: Any) -> Any:
     }
 
 
+# SUNSET: remove when #4327 lands -- the dedicated, CLI-validated inline
+# ``summary`` attr replaces this interim bounding of ``review_ref``.
+_PROSE_VALUE_RE = re.compile(r"\s")
+
+
 def _truncate_attr_value(value: str, max_bytes: int = ZEITGEIST_ATTRS_MAX_BYTES) -> str:
     """Truncate to at most *max_bytes* UTF-8 bytes on a codepoint boundary.
 
@@ -328,7 +333,11 @@ def _truncate_attr_value(value: str, max_bytes: int = ZEITGEIST_ATTRS_MAX_BYTES)
 
 
 def _bounded_review_ref(review_ref: Any) -> Any:
-    """Bound ``review_ref`` to the relay's per-attr byte budget (#3954).
+    """Bound a prose ``review_ref`` for the volatile moment (#3954, interim).
+
+    SUNSET: remove when #4327 lands -- the structural fix is a dedicated,
+    CLI-validated inline ``summary`` attr; until then this keeps the approval
+    moment on the wire instead of dropping it.
 
     A review summary routinely runs past the codec's 240-UTF-8-byte attr
     bound, and the codec is deliberately fail-closed there — so before this,
@@ -336,15 +345,35 @@ def _bounded_review_ref(review_ref: Any) -> Any:
     ("WPStatusChanged not broadcast: attr values exceed the 240-byte bound").
     The full text is not lost: it stays durable in the canonical status log
     the fan-out already wrote; only this volatile projection rides bounded,
-    visibly truncated. Non-strings pass through untouched (``None`` included)
-    so the codec still guards every other shape.
+    visibly truncated.
+
+    Two shapes, two rules (2026-09-14 ratified direction, PR #4319 review):
+
+    * **Prose** (any whitespace): collapse internal whitespace/newlines to
+      single spaces first — a newline is non-printable to the codec, so a
+      multi-line note would otherwise drop the moment even under the byte
+      bound — then truncate. Same one-line normalisation the codec applies
+      to its derived summaries.
+    * **Pointer-shaped** (no whitespace at all, e.g. a ``review-cycle://``
+      URI): pass through *unchanged*, even over the bound, so the codec
+      still fails closed on it — a truncated URI would be a broken
+      reference, silently worse than a dropped moment.
+
+    Non-strings pass through untouched (``None`` included); a value that
+    collapses to nothing (whitespace-only, which every producer strips
+    before it reaches here) also passes through for the codec to judge.
     """
     if not isinstance(review_ref, str):
         return review_ref
-    bounded = _truncate_attr_value(review_ref)
-    if bounded != review_ref:
-        logger.debug(
-            "Zeitgeist WPStatusChanged review_ref bounded to %d UTF-8 bytes for the volatile moment; full text stays in the canonical status log",
+    if not _PROSE_VALUE_RE.search(review_ref):
+        return review_ref  # pointer-shaped: never truncate a URI
+    one_line = " ".join(review_ref.split())
+    if not one_line:
+        return review_ref
+    bounded = _truncate_attr_value(one_line)
+    if bounded != one_line:
+        logger.info(
+            "Zeitgeist WPStatusChanged review_ref truncated to %d UTF-8 bytes for the volatile moment; full text stays in the canonical status log",
             ZEITGEIST_ATTRS_MAX_BYTES,
         )
     return bounded
@@ -353,14 +382,18 @@ def _bounded_review_ref(review_ref: Any) -> Any:
 def _first_non_printable_attr(attrs: Mapping[str, str]) -> tuple[str, list[str]] | None:
     """Find the first attr value the decode-seam control-character guard would reject.
 
-    ``to_zeitgeist_attrs`` (spec-kitty-events, pinned 8.2.0) applies no
-    printability check of its own — only ``from_zeitgeist_attrs`` does
-    (``_reject_control_characters``, Priivacy-ai/spec-kitty-events#64, fix in
-    flight as events#104). Free-text decision prose (``question``/``options``
-    on open, ``final_answer``/``rationale`` on resolve) can therefore reach
-    this seam carrying control characters — a pasted ANSI escape sequence is
-    routine — that every consumer's decode will reject. Using the same
-    ``str.isprintable()`` predicate here turns that otherwise-silent
+    ``to_zeitgeist_attrs`` (spec-kitty-events, pinned 9.1.6) rejects
+    non-printable characters on *encode* too (its own
+    ``_reject_control_characters`` pass over emitted attrs), so this
+    producer-side pre-check is now redundant belt-and-braces rather than the
+    only guard — kept as defense-in-depth so the drop is logged with this
+    bridge's message (naming the offending key and codepoints) instead of the
+    codec's, and so a future pin change cannot silently reopen the gap.
+    Free-text decision prose (``question``/``options`` on open,
+    ``final_answer``/``rationale`` on resolve) can reach this seam carrying
+    control characters — a pasted ANSI escape sequence is routine — that
+    every consumer's decode will reject. Using the same
+    ``str.isprintable()`` predicate turns that otherwise-silent
     decode-side drop into a producer-side warning.
     """
     for key, value in attrs.items():
@@ -571,9 +604,7 @@ def _refresh_liveness_bounded(
         # Zero-attempt discipline, same as the sanitizer gate: a ref outside
         # FocusArgs' grammar is a guaranteed 422; skipping beats sending a
         # frame built to be rejected. Presence above already went out.
-        logger.debug(
-            "Zeitgeist focus ref %r does not fit the relay's focus_ref grammar; focus frame skipped", composed
-        )
+        logger.debug("Zeitgeist focus ref %r does not fit the relay's focus_ref grammar; focus frame skipped", composed)
         return
 
     capability = _resolve_focus_capability(cwd, deadline=deadline)
