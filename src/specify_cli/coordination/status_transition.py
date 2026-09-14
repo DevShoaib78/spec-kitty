@@ -1089,6 +1089,7 @@ def _collapse_alias_in_transaction(
         execution_mode=request.execution_mode,
         reason=request.reason,
         review_ref=request.review_ref,
+        summary=request.summary,
         review_result=request.review_result,
         policy_metadata=request.policy_metadata,
     )
