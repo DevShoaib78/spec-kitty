@@ -737,6 +737,15 @@ def _collapse_alias_in_place(
         wp_id,
     )
     _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
+    # #4327: normalize the inline moment fields exactly as the persisted arm
+    # does (``prepare_transition`` already refused invalid values at the
+    # shared boundary before choosing this arm); the synthetic event a
+    # caller inspects must never carry an un-normalized gist/pointer shape a
+    # persisted event would not.
+    from .moment_fields import validate_review_ref, validate_summary
+
+    summary = validate_summary(request.summary) if request.summary is not None else None
+    review_ref = validate_review_ref(request.review_ref, repo_root=request.repo_root) if request.review_ref is not None else None
     return build_status_event(
         mission_slug=mission_slug,
         wp_id=wp_id,
@@ -748,8 +757,8 @@ def _collapse_alias_in_place(
         execution_mode=request.execution_mode,
         reason=request.reason,
         reason_source=request.reason_source,
-        review_ref=request.review_ref,
-        summary=request.summary,
+        review_ref=review_ref,
+        summary=summary,
         evidence=None,
         review_result=request.review_result,
         policy_metadata=request.policy_metadata,
