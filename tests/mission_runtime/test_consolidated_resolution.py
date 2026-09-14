@@ -365,8 +365,9 @@ def test_e2_coord_kind_bypasses_deleted_coordination_branch(
     assert resolved == CommitTarget(ref="main")
 
 
-def test_e2_status_state_still_probes_coordination_and_is_unaffected(repo: Path) -> None:
-    """SC-005 guard at the write-routing layer: ``STATUS_STATE`` is NOT in
+@pytest.mark.parametrize("kind", [MissionArtifactKind.STATUS_STATE, MissionArtifactKind.DECISION_LOG])
+def test_e2_status_state_still_probes_coordination_and_is_unaffected(repo: Path, kind: MissionArtifactKind) -> None:
+    """SC-005 guard: ``STATUS_STATE`` and ``DECISION_LOG`` are NOT in
     the E2 in-scope set, so a fully-retired-coord E2 mission still raises
     ``CoordinationBranchDeleted`` (wrapped) for it — proving the E2
     short-circuit is genuinely kind-scoped, not blanket."""
@@ -374,8 +375,15 @@ def test_e2_status_state_still_probes_coordination_and_is_unaffected(repo: Path)
         repo, mid8="01KYT1DD", mission_number=304
     )
 
+    from specify_cli.coordination.surface_resolver import resolve_status_surface
+
+    # Completed-mission reads stay anchored to the published primary tree, but
+    # that read shortcut must not authorize an excluded kind's write placement.
+    expected_read = _feature_dir / "status.events.jsonl"
+    assert resolve_status_surface(repo, mission_slug) == expected_read
     with pytest.raises(ActionContextError):
-        resolve_placement_only(repo, mission_slug, kind=MissionArtifactKind.STATUS_STATE)
+        resolve_placement_only(repo, mission_slug, kind=kind)
+    assert resolve_status_surface(repo, mission_slug) == expected_read
 
 
 # ---------------------------------------------------------------------------
