@@ -11,7 +11,7 @@
         "WP01"
       ],
       "write_scope": [
-        "docs/how-to/charter-owned-checkout.md",
+        "docs/development/how-to/charter-owned-checkout.md",
         "src/charter/activation/context.py",
         "src/charter/activation/context_json.py",
         "src/charter/activation/sync.py",

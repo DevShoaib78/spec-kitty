@@ -1,3 +1,12 @@
+---
+title: Author and read charter policy in an owned checkout
+description: Select the checkout that owns charter policy so `charter new`, `charter activate`, and `charter context` all read and write the same authority when you work from a linked worktree.
+doc_status: active
+updated: '2026-09-14'
+audience: docs/context/audience/internal/lead-developer.md
+type: how-to
+---
+
 # Author and read charter policy in an owned checkout
 
 Charter commands normally resolve the repository's primary checkout. When working

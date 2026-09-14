@@ -570,7 +570,6 @@ exclude = [
     "src/specify_cli/cli/commands/charter/_synthesis.py",
     "src/specify_cli/cli/commands/charter/_widen.py",
     "src/specify_cli/cli/commands/charter/activate.py",
-    "src/specify_cli/cli/commands/charter/context.py",
     "src/specify_cli/cli/commands/charter/deactivate.py",
     "src/specify_cli/cli/commands/charter/generate.py",
     "src/specify_cli/cli/commands/charter/lint.py",

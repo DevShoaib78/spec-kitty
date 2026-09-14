@@ -24,7 +24,7 @@ authoritative_surface: src/specify_cli/
 create_intent:
 - tests/specify_cli/cli/commands/test_charter_owned_checkout.py
 - tests/charter/test_context_owned_checkout.py
-- docs/how-to/charter-owned-checkout.md
+- docs/development/how-to/charter-owned-checkout.md
 execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/doctrine.py
@@ -36,7 +36,7 @@ owned_files:
 - tests/specify_cli/cli/commands/test_doctrine_new.py
 - tests/specify_cli/cli/commands/test_charter_owned_checkout.py
 - tests/charter/test_context_owned_checkout.py
-- docs/how-to/charter-owned-checkout.md
+- docs/development/how-to/charter-owned-checkout.md
 role: implementer
 tags: []
 task_type: implement

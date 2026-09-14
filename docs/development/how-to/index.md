@@ -21,6 +21,7 @@ Spec Kitty. Each page is scoped to one job you can pick up and finish.
 - [Contract pinning workflow](contract-pinning.md) — pinning the `spec-kitty-events` envelope contract in tests.
 - [Cut-over guard: fail-closed pre-merge gate](cutover-guard.md) — what `spec-kitty cutover-guard` checks, how it is wired into CI, and how to register it as a required status check.
 - [Create a doctrine artifact](create-a-doctrine-artifact.md) — author a new doctrine artifact end to end, including the loose-contract asset kind.
+- [Author and read charter policy in an owned checkout](charter-owned-checkout.md) — keep `charter new`, `charter activate`, and `charter context` on one checkout's authority when working from a linked worktree.
 
 ## See also
 
