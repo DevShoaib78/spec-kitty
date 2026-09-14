@@ -72,16 +72,20 @@ def _invoke(args: list[str], cwd: Path | None = None) -> object:
 
 
 def _json_payload(output: str) -> dict:  # type: ignore[type-arg]
-    """Parse ``decision`` stdout as exactly one JSON object.
+    """Parse ``decision`` output as JSON lines; the payload is the last line.
 
-    The subcommands' contract is "JSON to stdout" — #4311 adds a possible
-    human-facing stderr warning line (ledger commit refused/errored) that
-    ``CliRunner`` folds into ``result.output``; the JSON line is the
-    machine contract, everything else is stderr diagnostics.
+    The subcommands' contract is "JSON on both streams" — #4311 adds a
+    possible stderr warning line (ledger commit refused/errored) that
+    ``CliRunner`` folds into ``result.output``. That warning is itself a
+    JSON object, like ``_handle_decision_error``'s structured stderr errors
+    (``test_decision_single_authority`` parses every mixed line as JSON),
+    so every line here must stay parseable and the machine payload — the
+    line the command echoes last, to stdout — is the final one.
     """
-    json_lines = [line for line in output.splitlines() if line.strip() and line.lstrip().startswith("{")]
-    assert len(json_lines) == 1, f"expected exactly 1 JSON line, got: {output!r}"
-    return json.loads(json_lines[0])
+    lines = [line for line in output.splitlines() if line.strip()]
+    assert lines, "expected at least one output line, got none"
+    payloads = [json.loads(line) for line in lines]
+    return payloads[-1]
 
 
 def _parse_open_output(output: str) -> dict:  # type: ignore[type-arg]

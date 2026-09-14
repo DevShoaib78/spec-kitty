@@ -840,7 +840,14 @@ def _coerce_uuid(raw: Any) -> uuid.UUID | None:
 
 __all__ = [
     "lifecycle_moment_handler",
-    "lifecycle_retry_window_s",
     "resolved_binding_moment_handler",
     "saas_moment_handler",
 ]
+
+# ``lifecycle_retry_window_s`` is deliberately NOT in ``__all__``: no src/
+# module outside this one reads the window (the env var is the operator
+# surface, the fan-out bound reads the handler attribute, and the two
+# intra-module call sites are the only consumers), so ``__all__`` membership
+# would be an unbacked cross-module export claim the #470 dead-symbol gate
+# correctly rejects. It stays a module-level helper rescued by that
+# intra-module use, importable by the bridge's own tests.

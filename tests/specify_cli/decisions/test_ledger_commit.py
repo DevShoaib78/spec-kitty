@@ -400,6 +400,11 @@ class TestCliOutput:
         assert result.exit_code == 0
         assert "NOT committed" in result.stderr
         assert "refusing" in result.stderr
+        # The warning is a JSON line, not prose: both streams stay parseable
+        # under the --json contract (mixed-runner consumers parse every line).
+        stderr_payload = json.loads(result.stderr.strip().splitlines()[-1])
+        assert stderr_payload["warning"] == "decision ledger NOT committed"
+        assert stderr_payload["ledger_commit_status"] == "refused"
         data = json.loads(result.output.strip().splitlines()[-1])
         assert data["ledger_commit"]["status"] == "refused"
 

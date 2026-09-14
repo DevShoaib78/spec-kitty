@@ -145,16 +145,26 @@ def _ledger_commit_payload(
     ``None`` when the operation made no ledger change (dry run, idempotent
     re-record). A refused/errored commit is reported here AND loudly on
     stderr — a decision left uncommitted in the working tree is exactly the
-    state #4311 says must never pass silently.
+    state #4311 says must never pass silently. The stderr line is JSON, not
+    prose: this command's ``--json`` contract keeps BOTH streams parseable
+    (``_handle_decision_error`` already emits structured JSON on stderr), and
+    a prose line interleaved ahead of the payload breaks JSON-lines consumers
+    of the mixed runner output.
     """
     if resp.ledger_commit is None:
         return None
     report = resp.ledger_commit
     if report.status in ("refused", "error"):
         typer.echo(
-            "Warning: decision ledger NOT committed ("
-            f"{report.status}): {report.diagnostic or 'no diagnostic'}; "
-            "the ledger row and its event are on disk uncommitted",
+            json.dumps(
+                {
+                    "warning": "decision ledger NOT committed",
+                    "ledger_commit_status": report.status,
+                    "diagnostic": report.diagnostic or "no diagnostic",
+                    "note": "the ledger row and its event are on disk uncommitted",
+                },
+                sort_keys=True,
+            ),
             err=True,
         )
     payload: dict[str, object] = report.model_dump()
