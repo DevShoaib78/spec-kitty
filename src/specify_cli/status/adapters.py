@@ -192,7 +192,7 @@ def _handler_declared_bound_s(handler: Callable[..., Any]) -> float:
         except Exception:  # noqa: BLE001 - a broken bound reader is the handler's bug; ignore it
             return 0.0
     try:
-        value = float(declared)  # type: ignore[arg-type]
+        value = float(declared)
     except (TypeError, ValueError):
         return 0.0
     if math.isnan(value) or math.isinf(value) or value < 0:

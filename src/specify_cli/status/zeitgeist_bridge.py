@@ -203,8 +203,13 @@ def _is_retryable_offer(result: OfferResult) -> bool:
     from specify_cli.zeitgeist_client.transport import OfferOutcome  # noqa: PLC0415
 
     if result.outcome is OfferOutcome.REJECTED:
-        return result.status_code == _RETRY_AFTER_WAKE_STATUS
-    return result.outcome in (OfferOutcome.DROPPED_BUDGET, OfferOutcome.DROPPED_UNREACHABLE)
+        # ``OfferResult`` resolves as ``Any`` under the narrow-file import
+        # skip, so the comparison is narrowed back to the declared ``bool``.
+        return bool(result.status_code == _RETRY_AFTER_WAKE_STATUS)
+    return (
+        result.outcome is OfferOutcome.DROPPED_BUDGET
+        or result.outcome is OfferOutcome.DROPPED_UNREACHABLE
+    )
 
 
 def _default_jitter(delay: float, lo: float, hi: float) -> float:
