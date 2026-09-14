@@ -15,6 +15,9 @@ requirement_refs:
 planning_base_branch: fix/mission-create-idempotency-4033
 merge_target_branch: fix/mission-create-idempotency-4033
 branch_strategy: Planning artifacts for this mission were generated on fix/mission-create-idempotency-4033. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/mission-create-idempotency-4033 unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-mission-create-idempotency-guard-01M2FNZ8
+base_commit: 3cd6acb6e77abb9e5b0423e9b6200a4e7adb243d
+created_at: '2026-09-14T10:09:17.843479+00:00'
 subtasks:
 - T001
 - T002

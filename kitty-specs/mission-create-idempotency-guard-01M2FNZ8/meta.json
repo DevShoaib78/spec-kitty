@@ -13,5 +13,7 @@
   "purpose_tldr": "Refuse a duplicate mission create (same slug+type, not abandoned) with an actionable error and an --allow-duplicate escape hatch.",
   "slug": "mission-create-idempotency-guard-01M2FNZ8",
   "target_branch": "fix/mission-create-idempotency-4033",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-09-14T10:09:05.080403+00:00"
 }
