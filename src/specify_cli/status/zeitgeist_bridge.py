@@ -74,6 +74,7 @@ from spec_kitty_events.status import StatusTransitionPayload
 from spec_kitty_events.zeitgeist_attrs import (
     PAYLOAD_MODEL_BY_EVENT_TYPE,
     VOLATILE_EVENT_TYPES,
+    ZEITGEIST_ATTRS_MAX_BYTES,
     ZeitgeistAttrsError,
     to_zeitgeist_attrs,
     zeitgeist_ref_for,
@@ -175,7 +176,7 @@ def _broadcast_status_transition(kwargs: Mapping[str, Any]) -> None:
                 "force": bool(getattr(metadata, "force", False)),
                 "reason": getattr(metadata, "reason", None),
                 "execution_mode": getattr(metadata, "execution_mode", None),
-                "review_ref": getattr(metadata, "review_ref", None),
+                "review_ref": _bounded_review_ref(getattr(metadata, "review_ref", None)),
                 "evidence": evidence,
             }
         )
@@ -301,6 +302,52 @@ def _normalise_evidence(evidence: Any) -> Any:
         **evidence,
         "repos": [{"repo": "local", "branch": "unknown", "commit": "unknown"}],
     }
+
+
+def _truncate_attr_value(value: str, max_bytes: int = ZEITGEIST_ATTRS_MAX_BYTES) -> str:
+    """Truncate to at most *max_bytes* UTF-8 bytes on a codepoint boundary.
+
+    Same algorithm as the codec's own bounded summaries
+    (``spec_kitty_events.zeitgeist_attrs._truncate_utf8``): a single ``"…"``
+    marker (3 UTF-8 bytes) replaces the cut tail so a truncated attr is
+    always visibly truncated, and the slice is re-decoded with
+    ``errors="ignore"`` so a multi-byte codepoint is never split. The codec
+    itself stays fail-closed — over-bound values raise, never truncate —
+    because it is the wire vocabulary's single owner; this bridge bounds the
+    one free-text field it knows can be routinely long *before* the payload
+    reaches the codec (``_bounded_review_ref`` below).
+    """
+    encoded = value.encode("utf-8")
+    if len(encoded) <= max_bytes:
+        return value
+    marker = "…"
+    budget = max_bytes - len(marker.encode("utf-8"))
+    if budget <= 0:
+        return ""
+    return encoded[:budget].decode("utf-8", errors="ignore") + marker
+
+
+def _bounded_review_ref(review_ref: Any) -> Any:
+    """Bound ``review_ref`` to the relay's per-attr byte budget (#3954).
+
+    A review summary routinely runs past the codec's 240-UTF-8-byte attr
+    bound, and the codec is deliberately fail-closed there — so before this,
+    every approval carrying a real review note was dropped whole
+    ("WPStatusChanged not broadcast: attr values exceed the 240-byte bound").
+    The full text is not lost: it stays durable in the canonical status log
+    the fan-out already wrote; only this volatile projection rides bounded,
+    visibly truncated. Non-strings pass through untouched (``None`` included)
+    so the codec still guards every other shape.
+    """
+    if not isinstance(review_ref, str):
+        return review_ref
+    bounded = _truncate_attr_value(review_ref)
+    if bounded != review_ref:
+        logger.debug(
+            "Zeitgeist WPStatusChanged review_ref bounded to %d UTF-8 bytes for the volatile moment; full text stays in the canonical status log",
+            ZEITGEIST_ATTRS_MAX_BYTES,
+        )
+    return bounded
 
 
 def _first_non_printable_attr(attrs: Mapping[str, str]) -> tuple[str, list[str]] | None:

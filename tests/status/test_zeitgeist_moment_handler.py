@@ -416,6 +416,83 @@ def test_review_only_done_transition_still_broadcasts(monkeypatch: pytest.Monkey
     assert "evidence" not in args["attrs"]  # unbroadcast, whatever its shape
 
 
+_APPROVAL_NOTE = (
+    "Approved — the transition table now covers the rollback edge, the reducer "
+    "handles out-of-order events, and the regression suite passes. " + "Padding past the bound. " * 8
+)
+
+
+def test_overlong_review_ref_is_truncated_not_dropped(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """#3954: an approval whose review note runs past the codec's 240-UTF-8-byte
+    attr bound must still broadcast. The codec is deliberately fail-closed
+    (over-bound values raise), so the bridge bounds ``review_ref`` before the
+    payload reaches it: the volatile projection rides visibly truncated while
+    the canonical status log keeps the full text."""
+    recorder = OfferRecorder().install(monkeypatch)
+    assert len(_APPROVAL_NOTE.encode("utf-8")) > 240  # the F-46 shape, not a near-miss
+
+    _fire_transition(
+        from_lane="for_review",
+        to_lane="approved",
+        metadata=_transition_metadata(
+            review_ref=_APPROVAL_NOTE,
+            evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "pr-1"}},
+        ),
+    )
+
+    assert [op for op, _args in recorder.moment_offers()] == ["event.publish"]
+    _op, args = recorder.moment_offers()[0]
+    assert args["kind"] == "WPStatusChanged"
+    assert args["attrs"]["to_lane"] == "approved"
+    wire_ref = args["attrs"]["review_ref"]
+    # Bounded on the byte budget the relay enforces, visibly truncated, and a
+    # prefix of the real note — not a dropped moment and not placeholder text.
+    assert len(wire_ref.encode("utf-8")) <= 240
+    assert wire_ref.endswith("…")
+    expected_prefix = _APPROVAL_NOTE.encode("utf-8")[: 240 - len("…".encode())].decode("utf-8", errors="ignore")
+    assert wire_ref == expected_prefix + "…"
+
+
+def test_short_review_ref_rides_verbatim(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """A review ref already inside the bound is byte-identical on the wire —
+    the bounding is a no-op, not a rewrite of every value."""
+    recorder = OfferRecorder().install(monkeypatch)
+
+    _fire_transition(
+        from_lane="for_review",
+        to_lane="approved",
+        metadata=_transition_metadata(
+            review_ref="review-cycle://demo-mission/wp01/review-2026-09-07.md",
+            evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "pr-1"}},
+        ),
+    )
+
+    _op, args = recorder.moment_offers()[0]
+    assert args["attrs"]["review_ref"] == "review-cycle://demo-mission/wp01/review-2026-09-07.md"
+
+
+def test_overlong_review_ref_truncates_on_a_codepoint_boundary(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """The 237-byte cut can land mid-codepoint (non-ASCII notes are routine);
+    the truncated attr never carries a split codepoint and still fits the
+    byte budget."""
+    recorder = OfferRecorder().install(monkeypatch)
+    note = "é" * 200  # 400 UTF-8 bytes; byte 237 cuts inside a 2-byte é
+
+    _fire_transition(
+        from_lane="for_review",
+        to_lane="approved",
+        metadata=_transition_metadata(
+            review_ref=note,
+            evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "pr-1"}},
+        ),
+    )
+
+    _op, args = recorder.moment_offers()[0]
+    wire_ref = args["attrs"]["review_ref"]
+    assert wire_ref == "é" * 118 + "…"
+    assert len(wire_ref.encode("utf-8")) == 239
+
+
 # ---------------------------------------------------------------------------
 # Slot 1: WP lane transitions -> WPStatusChanged
 # ---------------------------------------------------------------------------
