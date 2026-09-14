@@ -324,25 +324,26 @@ def open_decision(
 
     if existing is not None:
         if not _is_terminal(existing.status):
-            # Idempotent return — already open. No ledger change, so no
-            # commit-on-record (issue #4311: re-recording the same decision
-            # is a no-op, never an empty commit) — EXCEPT when the opened
-            # event had to be repaired, which did change status.events.jsonl.
+            # Idempotent return — already open. The re-record itself is a
+            # no-op (issue #4311: never a duplicate row, never an event), but
+            # the commit is still ATTEMPTED: the seam's own idempotence makes
+            # an already-committed ledger a byte-identical "unchanged" no-op,
+            # so this costs nothing on the happy path — while a first record
+            # whose commit failed (refused/error, e.g. an operator who has
+            # since created the feature branch) converges to committed on
+            # the rerun instead of staying uncommitted forever. A repaired
+            # opened event names the repair in the commit message.
             repaired_lamport = _repair_missing_opened_event(
                 repo_root,
                 mission_slug,
                 entry=existing,
             )
-            ledger_commit = (
-                _ledger_commit.commit_ledger_change(
-                    repo_root,
-                    mission_slug,
-                    mission_dir,
-                    existing.decision_id,
-                    action="repaired",
-                )
-                if repaired_lamport is not None
-                else None
+            ledger_commit = _ledger_commit.commit_ledger_change(
+                repo_root,
+                mission_slug,
+                mission_dir,
+                existing.decision_id,
+                action="repaired" if repaired_lamport is not None else "open",
             )
             if on_minted is not None:
                 on_minted(existing.decision_id)
@@ -476,12 +477,26 @@ def _terminal_command(
             # Same outcome — check payload identity
             payload_matches = entry.final_answer == final_answer and entry.other_answer == other_answer and entry.rationale == rationale
             if payload_matches:
+                # Idempotent re-record: the ledger itself changes nothing, but
+                # the commit is still ATTEMPTED (#4311) — the seam's own
+                # idempotence makes an already-committed ledger "unchanged"
+                # (never an empty commit), while a first record whose commit
+                # failed converges to committed on the rerun instead of
+                # staying uncommitted forever.
+                ledger_commit = _ledger_commit.commit_ledger_change(
+                    repo_root,
+                    mission_slug,
+                    mission_dir,
+                    decision_id,
+                    action=terminal_outcome,
+                )
                 return DecisionTerminalResponse(
                     decision_id=decision_id,
                     status=target_status,
                     terminal_outcome=terminal_outcome,
                     idempotent=True,
                     event_lamport=None,
+                    ledger_commit=ledger_commit,
                 )
         # Different outcome or different payload — conflict
         raise DecisionError(
@@ -521,8 +536,8 @@ def _terminal_command(
     # Commit-on-record (#4311): a resolved/deferred/canceled decision is never
     # left uncommitted in the working tree — the terminal ledger change lands
     # as one local commit through the write seam in the same operation. The
-    # early idempotent return above (same outcome, same payload) commits
-    # nothing: re-recording the same decision is a no-op.
+    # early idempotent return above (same outcome, same payload) also
+    # re-attempts the commit, a "unchanged" no-op when it already landed.
     ledger_commit = _ledger_commit.commit_ledger_change(
         repo_root,
         mission_slug,

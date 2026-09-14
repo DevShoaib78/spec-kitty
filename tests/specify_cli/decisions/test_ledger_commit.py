@@ -82,6 +82,10 @@ def _committed_result(entry_id: str) -> WriteSeamResult:
     )
 
 
+def _unchanged_result() -> WriteSeamResult:
+    return WriteSeamResult(status="unchanged", entry_id="dm", destination_surface="main")
+
+
 def _git(repo_root: Path, *args: str) -> str:
     return subprocess.run(
         ["git", "-C", str(repo_root), *args],
@@ -147,23 +151,26 @@ class TestServiceWiring:
         assert kwargs["entry_id"] == resp.decision_id
         assert "open" in kwargs["message"]
 
-    def test_idempotent_reopen_commits_nothing(self, tmp_path: Path) -> None:
+    def test_idempotent_reopen_is_a_no_op_commit(self, tmp_path: Path) -> None:
         # emit runs for real on the first open so the opened event exists —
         # otherwise the re-open would (correctly) repair the missing event
         # and commit THAT; this test pins the pure no-op re-record.
+        results = [_committed_result("dm"), _unchanged_result()]
         with patch(
             "specify_cli.coordination.write_seam.write_artifact",
-            return_value=_committed_result("dm"),
+            side_effect=results,
         ) as seam:
             first = _open(tmp_path)
             second = _open(tmp_path)
 
         assert second.idempotent is True
         assert second.decision_id == first.decision_id
-        assert second.ledger_commit is None
-        # Exactly one commit for the whole open + re-open sequence: the
-        # no-op re-record never reaches the seam (never an empty commit).
-        assert seam.call_count == 1
+        # The re-record re-ATTEMPTS the commit (a first record whose commit
+        # failed converges on the rerun) and the seam answers "unchanged" —
+        # a no-op, never an empty commit.
+        assert second.ledger_commit is not None
+        assert second.ledger_commit.status == "unchanged"
+        assert seam.call_count == 2
 
     def test_terminal_record_commits_the_ledger(self, tmp_path: Path) -> None:
         with (
@@ -188,13 +195,17 @@ class TestServiceWiring:
         assert seam.call_count == 2  # one for the open, one for the resolve
         assert "resolved" in seam.call_args.kwargs["message"]
 
-    def test_idempotent_terminal_rerun_commits_nothing(self, tmp_path: Path) -> None:
+    def test_idempotent_terminal_rerun_is_a_no_op_commit(self, tmp_path: Path) -> None:
         with (
             patch("specify_cli.decisions.emit.emit_decision_opened", return_value=1),
             patch("specify_cli.decisions.emit.emit_decision_resolved", return_value=2),
             patch(
                 "specify_cli.coordination.write_seam.write_artifact",
-                return_value=_committed_result("dm"),
+                side_effect=[
+                    _committed_result("dm"),
+                    _committed_result("dm"),
+                    _unchanged_result(),
+                ],
             ) as seam,
         ):
             opened = _open(tmp_path)
@@ -214,8 +225,11 @@ class TestServiceWiring:
             )
 
         assert rerun.idempotent is True
-        assert rerun.ledger_commit is None
-        assert seam.call_count == 2  # open + resolve only; the rerun is a no-op
+        assert rerun.ledger_commit is not None
+        assert rerun.ledger_commit.status == "unchanged"
+        # open + resolve committed; the rerun re-attempted and was told
+        # "unchanged" — no third commit, never an empty commit.
+        assert seam.call_count == 3
 
     def test_dry_run_never_commits(self, tmp_path: Path) -> None:
         with patch(
@@ -455,7 +469,10 @@ class TestRealRepoCommit:
 
         assert second.idempotent is True
         assert second.decision_id == first.decision_id
-        assert second.ledger_commit is None
+        # The re-record re-attempts the commit; the real seam answers
+        # "unchanged" — no second commit, never an empty commit.
+        assert second.ledger_commit is not None
+        assert second.ledger_commit.status == "unchanged"
 
         # Required test 1: committed exactly once — ONE new commit on the
         # target branch beyond the fixture's, carrying the whole ledger
@@ -513,7 +530,8 @@ class TestRealRepoCommit:
         assert resolved.ledger_commit is not None
         assert resolved.ledger_commit.status == "committed"
         assert rerun.idempotent is True
-        assert rerun.ledger_commit is None
+        assert rerun.ledger_commit is not None
+        assert rerun.ledger_commit.status == "unchanged"
 
         subjects = _head_subjects(repo, count=6)
         assert len([s for s in subjects if "record open of" in s]) == 1
