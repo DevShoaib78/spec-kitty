@@ -26,7 +26,6 @@
   "purpose_context": "spec-kitty specify / agent mission create invoked twice for the same intent silently creates two missions (both exit 0); add a fail-closed idempotency guard with an abandonment-aware auto-allow and an explicit override for the legitimate second-mission-same-name and factory-volume cases (#4033).",
   "purpose_tldr": "Refuse a duplicate mission create (same slug+type, not abandoned) with an actionable error and an --allow-duplicate escape hatch.",
   "slug": "mission-create-idempotency-guard-01M2FNZ8",
-  "status_phase": "1",
   "target_branch": "fix/mission-create-idempotency-4033",
   "topology": "coord",
   "vcs": "git",
