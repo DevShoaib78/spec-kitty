@@ -774,7 +774,7 @@ def move_task(
     # one printable line of at most 240 UTF-8 bytes (never silently
     # truncated), and the approval ref is pointer-only — the note's prose
     # stays in --note/--summary and never rides the pointer slot (#3954).
-    from specify_cli.status.moment_fields import (
+    from specify_cli.status import (
         ReviewRefValidationError,
         SummaryValidationError,
         validate_review_ref,

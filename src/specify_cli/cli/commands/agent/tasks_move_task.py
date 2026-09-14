@@ -3355,7 +3355,7 @@ def _run_arbiter_override(
     # validation; substitute the synthetic ``review:<WP>`` token instead —
     # the legacy prose stays durable on the old event, never rewritten.
     if _arb_review_ref is not None:
-        from specify_cli.status.moment_fields import (
+        from specify_cli.status import (
             ReviewRefValidationError,
             validate_review_ref,
         )

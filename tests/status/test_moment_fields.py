@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.status.moment_fields import (
-    SUMMARY_MAX_UTF8_BYTES,
+    _SUMMARY_MAX_UTF8_BYTES,
     ReviewRefValidationError,
     SummaryValidationError,
     validate_review_ref,
@@ -102,7 +102,7 @@ class TestSummaryNormalization:
     def test_nothing_is_ever_truncated(self) -> None:
         # A 240-byte gist is returned whole; the rejection path is the ONLY
         # response to an over-bound gist.
-        gist = "x" * SUMMARY_MAX_UTF8_BYTES
+        gist = "x" * _SUMMARY_MAX_UTF8_BYTES
         assert validate_summary(gist) == gist
 
 

@@ -400,7 +400,7 @@ def emit(
         # is bounded/printable/one-line here (never truncated silently), and
         # review_ref is pointer-only — prose in the pointer slot is what #3954
         # dropped whole at the relay's 240-byte per-attr bound.
-        from specify_cli.status.moment_fields import (
+        from specify_cli.status import (
             ReviewRefValidationError,
             SummaryValidationError,
             validate_review_ref,

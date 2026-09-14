@@ -771,6 +771,82 @@ def test_owned_approval_summary_rides_event_and_note_stays_whole_in_reason(final
     assert row["reason"] == long_note.strip()
 
 
+def test_owned_rejection_with_long_note_keeps_pointer_ref_and_carries_summary(finalized_checkouts, tmp_path):
+    """#4327 widened acceptance (controller scope check, door 2): a rejection
+    out of ``in_review`` with a long multi-line ``--note`` puts a POINTER in
+    ``review_ref`` — never the note's prose, which pre-#4327 flowed there via
+    the ``st.note_text`` fallback — carries the bounded gist in ``summary``,
+    and keeps the full prose whole in ``reason``."""
+    primary, owned, sibling = finalized_checkouts
+    mission = _advance_owned_work_to_review(owned)
+    claimed = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "in_review",
+            "--reviewer",
+            "reviewer",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
+    assert claimed.exit_code == 0, claimed.output
+    feedback = tmp_path / "review-feedback.md"
+    feedback.write_text("The focus-time fix regressed the baseline;\nrework the guard before resubmitting.\n", encoding="utf-8")
+
+    long_note = (
+        "Rejected after the baseline run showed the focus-time regression;\n"
+        "the reviewer's transcript names the failing case\n"
+        "and the reproduction command, and the rework plan\n"
+        "restates the guard invariant the fix broke.\n"
+    )
+    rejected = CliRunner().invoke(
+        tasks_app,
+        [
+            "move-task",
+            "WP01",
+            "--to",
+            "planned",
+            "--reviewer",
+            "reviewer",
+            "--review-feedback-file",
+            str(feedback),
+            "--note",
+            long_note,
+            "--summary",
+            "Rework: fix the focus-time regression",
+            "--mission",
+            SLUG,
+            "--owned-checkout",
+            str(owned),
+            "--json",
+        ],
+    )
+
+    assert rejected.exit_code == 0, rejected.output
+    events = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
+    planned_rows = [row for row in events if row.get("wp_id") == "WP01" and row.get("to_lane") == "planned"]
+    # One bootstrap planned row (finalize-tasks) + exactly one rejection hop.
+    assert len(planned_rows) == 2
+    row = planned_rows[-1]
+    # The bounded gist rides the new inline attr.
+    assert row["summary"] == "Rework: fix the focus-time regression"
+    # Pointer-only (#4327): the rejection's review_ref is the review-cycle
+    # pointer (or the synthetic ``review:<WP>`` token when no pointer
+    # applies) — never the note's prose.
+    assert row["review_ref"].startswith(("review-cycle://", "feedback://", "rev://")) or row["review_ref"] == "review:WP01"
+    assert "\n" not in row["review_ref"]
+    # The full multi-line rejection rationale stays whole in reason (the
+    # backward-hop prefix naming the pointer is pre-existing behavior) —
+    # never truncated, never folded into the pointer slot alone.
+    assert long_note.strip() in row["reason"]
+
+
 def test_owned_approval_emit_failure_compensates_selected_verdict(finalized_checkouts, monkeypatch):
     from specify_cli.cli.commands.agent import tasks_move_task
 

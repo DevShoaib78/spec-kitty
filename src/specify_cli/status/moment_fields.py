@@ -48,7 +48,6 @@ import re
 from pathlib import Path, PurePosixPath
 
 __all__ = [
-    "SUMMARY_MAX_UTF8_BYTES",
     "ReviewRefValidationError",
     "SummaryValidationError",
     "validate_review_ref",
@@ -57,8 +56,10 @@ __all__ = [
 
 #: The relay-enforced per-attr bound (zeitgeist ``managed_live.schema.json``
 #: ``maxUtf8Bytes: 240``), mirrored by SaaS and the events codec. Kept in one
-#: place so the validator, its error message, and the tests quote one number.
-SUMMARY_MAX_UTF8_BYTES = 240
+#: place so the validator and its error message quote one number; module-
+#: private (the dead-symbol gate owns the public surface -- no src/ consumer
+#: needs the constant itself, the validators carry the number).
+_SUMMARY_MAX_UTF8_BYTES = 240
 
 # Horizontal whitespace is NORMALIZED (collapsed to one space), never
 # rejected: a trailing tab or a double space in an operator's gist is a
@@ -123,7 +124,7 @@ def validate_summary(value: str) -> str:
         SummaryValidationError: when *value* contains a non-printable
             character other than space/tab (the codepoint is named, e.g.
             ``U+000A`` for a newline), is empty after trimming, or encodes
-            to more than :data:`SUMMARY_MAX_UTF8_BYTES` UTF-8 bytes (the
+            to more than :data:`_SUMMARY_MAX_UTF8_BYTES` UTF-8 bytes (the
             message names the field, the actual size, and the bound).
             Nothing is ever silently truncated.
     """
@@ -142,10 +143,10 @@ def validate_summary(value: str) -> str:
         raise SummaryValidationError("--summary is empty after trimming whitespace; omit the option rather than passing a blank gist")
 
     size = len(normalized.encode("utf-8"))
-    if size > SUMMARY_MAX_UTF8_BYTES:
+    if size > _SUMMARY_MAX_UTF8_BYTES:
         raise SummaryValidationError(
             f"--summary is {size} UTF-8 bytes; the inline summary is bounded "
-            f"to {SUMMARY_MAX_UTF8_BYTES} UTF-8 bytes — shorten the gist and "
+            f"to {_SUMMARY_MAX_UTF8_BYTES} UTF-8 bytes — shorten the gist and "
             "keep the full note in --note/--reason (nothing is truncated)"
         )
     return normalized
