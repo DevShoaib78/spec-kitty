@@ -604,7 +604,9 @@ def _refresh_liveness_bounded(
         # Zero-attempt discipline, same as the sanitizer gate: a ref outside
         # FocusArgs' grammar is a guaranteed 422; skipping beats sending a
         # frame built to be rejected. Presence above already went out.
-        logger.debug("Zeitgeist focus ref %r does not fit the relay's focus_ref grammar; focus frame skipped", composed)
+        logger.debug(
+            "Zeitgeist focus ref %r does not fit the relay's focus_ref grammar; focus frame skipped", composed
+        )
         return
 
     capability = _resolve_focus_capability(cwd, deadline=deadline)
