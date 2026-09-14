@@ -71,11 +71,22 @@ def _invoke(args: list[str], cwd: Path | None = None) -> object:
         os.chdir(old_cwd)
 
 
+def _json_payload(output: str) -> dict:  # type: ignore[type-arg]
+    """Parse ``decision`` stdout as exactly one JSON object.
+
+    The subcommands' contract is "JSON to stdout" — #4311 adds a possible
+    human-facing stderr warning line (ledger commit refused/errored) that
+    ``CliRunner`` folds into ``result.output``; the JSON line is the
+    machine contract, everything else is stderr diagnostics.
+    """
+    json_lines = [line for line in output.splitlines() if line.strip() and line.lstrip().startswith("{")]
+    assert len(json_lines) == 1, f"expected exactly 1 JSON line, got: {output!r}"
+    return json.loads(json_lines[0])
+
+
 def _parse_open_output(output: str) -> dict:  # type: ignore[type-arg]
     """Parse ``decision open`` stdout as exactly one JSON object."""
-    lines = [line for line in output.splitlines() if line.strip()]
-    assert len(lines) == 1, f"expected exactly 1 JSON line, got: {output!r}"
-    return json.loads(lines[0])
+    return _json_payload(output)
 
 
 def _open_decision(
@@ -322,7 +333,7 @@ def test_resolve_happy_path(tmp_path: Path) -> None:
         )
 
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = _json_payload(result.output)
     assert data["terminal_outcome"] == "resolved"
     assert data["status"] == "resolved"
     assert data["decision_id"] == decision_id
@@ -354,7 +365,7 @@ def test_resolve_with_other_answer(tmp_path: Path) -> None:
         )
 
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = _json_payload(result.output)
     assert data["terminal_outcome"] == "resolved"
 
     # Verify other_answer persisted in index
@@ -388,7 +399,7 @@ def test_defer_happy_path(tmp_path: Path) -> None:
         )
 
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = _json_payload(result.output)
     assert data["terminal_outcome"] == "deferred"
     assert data["status"] == "deferred"
     assert data["decision_id"] == decision_id
@@ -418,7 +429,7 @@ def test_cancel_happy_path(tmp_path: Path) -> None:
         )
 
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = _json_payload(result.output)
     assert data["terminal_outcome"] == "canceled"
     assert data["status"] == "canceled"
 
@@ -437,7 +448,7 @@ def test_verify_clean(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = _json_payload(result.output)
     assert data["status"] == "clean"
     assert data["findings"] == []
     assert data["deferred_count"] == 0
@@ -473,7 +484,7 @@ def test_verify_drift_exits_1(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 1
-    data = json.loads(result.output)
+    data = _json_payload(result.output)
     assert data["status"] == "drift"
     assert len(data["findings"]) >= 1
     assert data["findings"][0]["kind"] == "DEFERRED_WITHOUT_MARKER"
@@ -501,7 +512,7 @@ def test_verify_no_fail_on_stale_exits_0(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = _json_payload(result.output)
     assert data["status"] == "drift"
     assert len(data["findings"]) >= 1
 
@@ -716,7 +727,7 @@ def test_resolve_dry_run(tmp_path: Path) -> None:
         )
 
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = _json_payload(result.output)
     assert data["decision_id"] == fake_id
     assert data["terminal_outcome"] == "resolved"
 
@@ -754,9 +765,7 @@ def test_open_mission_path_traversal_rejected(tmp_path: Path) -> None:
             ],
             cwd=tmp_path,
         )
-        assert result.exit_code != 0, (
-            f"Expected non-zero exit for traversal value {bad_mission!r}, got 0"
-        )
+        assert result.exit_code != 0, f"Expected non-zero exit for traversal value {bad_mission!r}, got 0"
 
 
 # ---------------------------------------------------------------------------
@@ -787,10 +796,7 @@ def test_open_emits_single_parseable_json_object(tmp_path: Path) -> None:
         )
 
     assert result.exit_code == 0
-    lines = [line for line in result.output.splitlines() if line.strip()]
-    assert len(lines) == 1, f"expected 1 JSON line, got: {result.output!r}"
-
-    payload = json.loads(result.output)
+    payload = _json_payload(result.output)
     assert len(payload["decision_id"]) == 26, "decision_id must be a ULID"
     assert payload["contract"] == "decision_open_v2"
     assert payload["recovery"]["idempotency_key"]["step_id"] == "fr003-step"
@@ -809,7 +815,7 @@ def test_verify_json_shape(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = _json_payload(result.output)
 
     # Required keys
     assert "status" in data
