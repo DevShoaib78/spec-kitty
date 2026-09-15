@@ -12,7 +12,9 @@ state: it verifies the configured agents' skill surfaces, additively restoring
 missing per-agent skill roots (e.g. .claude/skills/) through the canonical
 installer, and exits 1 with the recovery command
 `spec-kitty agent config sync --create-missing --keep-orphaned` when shared
-command skills (codex/vibe/pi/letta) are missing or empty.
+command skills (codex/vibe/pi/letta) are missing or empty. An existing
+per-agent skill file that is empty, a directory, or a symlink exits 1 naming
+its path and is preserved untouched — rename or remove it and re-run init.
 
 Note: The --no-git flag from previous versions has been removed.
       init never touches git state regardless of flags.

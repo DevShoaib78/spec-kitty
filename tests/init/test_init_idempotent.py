@@ -196,6 +196,122 @@ def test_initialized_clone_restore_rejects_unsafe_roots(monkeypatch, tmp_path, a
     assert config.read_text() == f"agents:\n  available: [{agent}]\n"
 
 
+@pytest.mark.parametrize("agent", ["claude", "qwen", "kilocode"])
+@pytest.mark.parametrize("broken", ["empty", "directory", "symlink"])
+def test_initialized_clone_rejects_unusable_native_skills(monkeypatch, tmp_path, agent, broken):
+    """An unusable existing NATIVE skill file fails explicitly and is preserved (#4425).
+
+    The re-run must verify usability of the complete expected surface, not only
+    presence: a SKILL.md that exists but is empty, a directory, or a symlink
+    exits 1 naming the affected path instead of reporting the surface verified.
+    User-owned content is never overwritten.
+    """
+    from specify_cli.skills.paths import get_primary_project_skill_root
+    from specify_cli.skills.registry import SkillRegistry
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    config.write_text(f"agents:\n  available: [{agent}]\n")
+    skills = SkillRegistry.from_package().discover_skills()
+    assert skills
+    root_name = get_primary_project_skill_root(agent)
+    root = tmp_path / root_name
+    for skill in skills:
+        path = root / skill.name / "SKILL.md"
+        path.parent.mkdir(parents=True)
+        path.write_text("Preserve user-owned content")
+    target = root / skills[0].name / "SKILL.md"
+    target.unlink()
+    if broken == "empty":
+        target.touch()
+    elif broken == "directory":
+        target.mkdir()
+    else:
+        target.symlink_to(config)
+    monkeypatch.chdir(tmp_path)
+    app, buf = _make_app_with_buf()
+    result = _run(app, ["init", "--ai", agent, "--non-interactive"])
+    assert result.exit_code == 1
+    flattened = " ".join(buf.getvalue().split())
+    assert "unusable" in flattened
+    assert f"{root_name}/{skills[0].name}/SKILL.md" in flattened
+    # The unusable shape is preserved untouched, never overwritten.
+    if broken == "empty":
+        assert target.is_file() and target.stat().st_size == 0
+    elif broken == "directory":
+        assert target.is_dir() and not target.is_symlink()
+    else:
+        assert target.is_symlink()
+    assert config.read_text() == f"agents:\n  available: [{agent}]\n"
+
+
+def test_initialized_clone_unusable_native_blocks_restore_write(monkeypatch, tmp_path):
+    """Unusable existing files fail before any additive restore writes (#4425).
+
+    A project with one absent skill AND one unusable skill exits 1 without
+    delivering the absent one, so a failing re-run never leaves a half-restored
+    surface behind.
+    """
+    from specify_cli.skills.paths import get_primary_project_skill_root
+    from specify_cli.skills.registry import SkillRegistry
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    config.write_text("agents:\n  available: [claude]\n")
+    skills = SkillRegistry.from_package().discover_skills()
+    assert len(skills) >= 2
+    root_name = get_primary_project_skill_root("claude")
+    root = tmp_path / root_name
+    for skill in skills[1:]:
+        path = root / skill.name / "SKILL.md"
+        path.parent.mkdir(parents=True)
+        path.write_text("Preserve user-owned content")
+    broken = root / skills[0].name / "SKILL.md"
+    broken.parent.mkdir(parents=True)
+    broken.touch()  # present but empty: unusable, preserved
+    absent_name = skills[1].name
+    (root / absent_name / "SKILL.md").unlink()  # force one genuinely absent skill
+    monkeypatch.chdir(tmp_path)
+    app, buf = _make_app_with_buf()
+    result = _run(app, ["init", "--ai", "claude", "--non-interactive"])
+    assert result.exit_code == 1
+    flattened = " ".join(buf.getvalue().split())
+    assert f"{root_name}/{skills[0].name}/SKILL.md" in flattened
+    # Nothing was written: the absent skill is still absent, the empty file
+    # is still empty, and no gitignore delivery happened.
+    assert not (root / absent_name / "SKILL.md").exists()
+    assert broken.stat().st_size == 0
+    assert config.read_text() == "agents:\n  available: [claude]\n"
+
+
+def test_initialized_clone_verifies_native_surface_when_complete(monkeypatch, tmp_path):
+    """A complete, usable NATIVE surface needs no restore and exits 0 (#4425).
+
+    This is the nothing-needs-installation half of the contract: the complete
+    expected set is verified even when nothing is absent.
+    """
+    from specify_cli.skills.paths import get_primary_project_skill_root
+    from specify_cli.skills.registry import SkillRegistry
+
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    config.write_text("agents:\n  available: [claude]\n")
+    skills = SkillRegistry.from_package().discover_skills()
+    root_name = get_primary_project_skill_root("claude")
+    root = tmp_path / root_name
+    for skill in skills:
+        path = root / skill.name / "SKILL.md"
+        path.parent.mkdir(parents=True)
+        path.write_text("Preserve user-owned content")
+    monkeypatch.chdir(tmp_path)
+    app, buf = _make_app_with_buf()
+    result = _run(app, ["init", "--ai", "claude", "--non-interactive"])
+    assert result.exit_code == 0, buf.getvalue()
+    for skill in skills:
+        assert (root / skill.name / "SKILL.md").read_text() == "Preserve user-owned content"
+    assert config.read_text() == "agents:\n  available: [claude]\n"
+
+
 def _make_app_with_buf() -> tuple[Typer, io.StringIO]:
     """Return app and the buffer backing the injected console."""
     buf = io.StringIO()

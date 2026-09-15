@@ -50,7 +50,7 @@ from specify_cli.provisioning.default_charter import (
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
-from specify_cli.skills.registry import SkillRegistry
+from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 
 # Module-level variables to hold injected dependencies
 _console: Console | None = None
@@ -208,6 +208,28 @@ def _check_initialized_command_skills(project: Path, requested: str | None) -> l
     return selected
 
 
+def _native_skill_gap(project: Path, root: str, skills: list[CanonicalSkill]) -> tuple[list[str], list[str]]:
+    """Classify the expected native surface into absent and unusable names.
+
+    A usable ``SKILL.md`` is a non-empty regular file. Anything else that is
+    present (empty file, directory, symlink) is user content: it is reported,
+    never overwritten (#4425 acceptance 3).
+    """
+    from specify_cli.skills.paths import skill_path_observations
+
+    absent: list[str] = []
+    unusable: list[str] = []
+    for skill in skills:
+        path = project / root / skill.name / "SKILL.md"
+        observations = skill_path_observations(project, path)
+        kind = observations[-1].state.kind
+        if kind == "absent":
+            absent.append(skill.name)
+        elif kind != "file" or path.stat().st_size == 0:
+            unusable.append(f"{root}/{skill.name}/SKILL.md")
+    return absent, unusable
+
+
 def _restore_native_project_skills(project: Path, agents: list[str]) -> None:
     """Finish clone-local delivery for NATIVE-root agents through the canonical installer.
 
@@ -216,12 +238,15 @@ def _restore_native_project_skills(project: Path, agents: list[str]) -> None:
     ``install_skills_for_agent``; no ``agent config`` path re-delivers them
     (#4425 acceptance 2). The restore is additive only: absent skills are
     reinstalled from the packaged registry, while existing files — user-edited,
-    third-party, or drifted — are preserved untouched (acceptance 3).
+    third-party, or drifted — are preserved untouched (acceptance 3). The
+    complete expected surface is verified both when nothing needs installation
+    and after restoration, so an unusable existing file (empty, a directory, or
+    a symlink) fails explicitly with its path instead of reporting verified.
     """
     from specify_cli import __version__ as _sk_version
     from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_NATIVE
     from specify_cli.skills.manifest import load_manifest
-    from specify_cli.skills.paths import get_primary_project_skill_root, skill_path_observations
+    from specify_cli.skills.paths import get_primary_project_skill_root
 
     native = [agent for agent in agents if (AGENT_SKILL_CONFIG.get(agent) or {}).get("class") == SKILL_CLASS_NATIVE]
     if not native:
@@ -230,12 +255,21 @@ def _restore_native_project_skills(project: Path, agents: list[str]) -> None:
     if not skills:
         raise ValueError("No packaged skills found to restore for: " + ", ".join(native))
     pending: dict[str, tuple[str, list[str]]] = {}
+    unusable: list[str] = []
     for agent in native:
         root = get_primary_project_skill_root(agent)
         assert root is not None
-        absent = [skill.name for skill in skills if skill_path_observations(project, project / root / skill.name / "SKILL.md")[-1].state.kind == "absent"]
+        absent, broken = _native_skill_gap(project, root, skills)
+        unusable.extend(broken)
         if absent:
             pending[agent] = (root, absent)
+    if unusable:
+        raise ValueError(
+            "Existing agent skill files are unusable and were left untouched: "
+            + ", ".join(unusable)
+            + ". Rename or remove the affected files, then re-run: spec-kitty init --ai "
+            + ",".join(native)
+        )
     if not pending:
         return
     assert _console is not None
@@ -251,12 +285,12 @@ def _restore_native_project_skills(project: Path, agents: list[str]) -> None:
         for entry in entries:
             manifest.add_entry(entry)
         save_manifest(manifest, project)
-        undelivered = []
-        for name in absent:
-            path = project / root / name / "SKILL.md"
-            observations = skill_path_observations(project, path)
-            if observations[-1].state.kind != "file" or path.stat().st_size == 0:
-                undelivered.append(name)
+        # Post-install verification covers the complete expected surface, not
+        # only the previously-absent names, so a write that landed unusable
+        # (or one that never landed) is caught here.
+        undelivered, still_broken = _native_skill_gap(project, root, skills)
+        if still_broken:
+            raise ValueError(f"Skill restoration for {agent} delivered unusable files: " + ", ".join(still_broken))
         if undelivered:
             raise ValueError(f"Skill restoration for {agent} did not deliver: " + ", ".join(undelivered))
         _console.print(f"[green]{AI_CHOICES[agent]}:[/green] restored {len(absent)} missing skills into {root} (existing files preserved)")
@@ -765,9 +799,11 @@ def init(  # noqa: C901
             Panel(
                 "[yellow]Already initialized.[/yellow]\n"
                 "Agent skill surfaces were verified on this re-run: missing per-agent\n"
-                "skill roots were restored; a missing command-skill surface instead\n"
-                "exits 1 with the recovery command\n"
-                "[cyan]spec-kitty agent config sync --create-missing --keep-orphaned[/cyan].\n"
+                "skill roots were restored. A missing or unusable managed surface exits 1\n"
+                "naming the affected paths — shared command skills with the recovery command\n"
+                "[cyan]spec-kitty agent config sync --create-missing --keep-orphaned[/cyan];\n"
+                "an unusable per-agent skill file is preserved untouched, so rename or\n"
+                "remove it and re-run init.\n"
                 "Run [cyan]spec-kitty upgrade[/cyan] to migrate to the latest version.",
                 title="[yellow]Already Initialized[/yellow]",
                 border_style="yellow",
