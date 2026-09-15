@@ -4098,6 +4098,7 @@ pages:
     - {slug: "claude-code", text: "Claude Code", level: 3}
     - {slug: "github-copilot", text: "GitHub Copilot", level: 3}
     - {slug: "google-gemini", text: "Google Gemini", level: 3}
+    - {slug: "llxprt-code", text: "LLxprt Code", level: 3}
     - {slug: "cursor", text: "Cursor", level: 3}
     - {slug: "qwen-code", text: "Qwen Code", level: 3}
     - {slug: "opencode", text: "OpenCode", level: 3}
