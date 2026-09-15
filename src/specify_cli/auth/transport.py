@@ -268,6 +268,10 @@ class AuthenticatedClient:
     refresh-then-retry-once policy on 401. Every callable that needs a
     bearer token in a synchronous code path goes through here.
 
+    Set ``retry_transport_errors=False`` for mutations that cannot safely be
+    replayed after an ambiguous transport failure. This disables network-error
+    retries and fallback; the explicit 401 refresh/retry policy still applies.
+
     The class is intentionally thin: the heavy lifting (single-flight
     refresh, secure storage, network fallback) lives in
     :class:`specify_cli.auth.token_manager.TokenManager` and the
@@ -291,6 +295,7 @@ class AuthenticatedClient:
         timeout: float = 30.0,
         client: httpx.Client | None = None,
         before_send: Callable[[str], None] | None = None,
+        retry_transport_errors: bool = True,
     ) -> None:
         self._timeout = timeout
         # Note: we keep an injected ``httpx.Client`` only when callers
@@ -301,6 +306,7 @@ class AuthenticatedClient:
         self._client = client
         # Validate caller-owned authority again after a refresh, before replay.
         self._before_send = before_send
+        self._retry_transport_errors = retry_transport_errors
 
     # ------------------------------------------------------------------
     # Public surface
@@ -402,6 +408,7 @@ class AuthenticatedClient:
             url,
             timeout=send_kwargs.pop("timeout", self._timeout),
             client=self._client,
+            retry_transport_errors=self._retry_transport_errors,
             **send_kwargs,
         )
 

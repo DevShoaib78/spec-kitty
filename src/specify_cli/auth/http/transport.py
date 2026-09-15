@@ -384,11 +384,12 @@ def request_with_fallback_sync(
     *,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
     client: httpx.Client | None = None,
+    retry_transport_errors: bool = True,
     **kwargs: Any,
 ) -> httpx.Response:
     """Perform a synchronous request with the shared SaaS fallback policy."""
     last_exc: Exception | None = None
-    for _ in range(3):
+    for _ in range(3 if retry_transport_errors else 1):
         try:
             if client is not None:
                 return client.request(method, url, timeout=timeout, **kwargs)
@@ -396,6 +397,8 @@ def request_with_fallback_sync(
                 return sync_client.request(method, url, **kwargs)
         except httpx.RequestError as exc:
             last_exc = exc
+            if not retry_transport_errors:
+                break
             response = request_with_stdlib_fallback_sync(method, url, timeout=timeout, **kwargs)
             if response is not None:
                 return response

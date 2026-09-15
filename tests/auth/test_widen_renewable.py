@@ -1,6 +1,7 @@
 """Offline acceptance checks for Widen's renewable CLI session (#2941)."""
 
 from unittest.mock import AsyncMock, MagicMock
+from pathlib import Path
 
 import httpx
 import pytest
@@ -15,6 +16,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture
 def login(monkeypatch):
+    monkeypatch.setattr("specify_cli.zeitgeist_client.repo_identity.origin_url", lambda cwd, deadline: "https://github.com/acme/project.git")
     now = now_utc()
     session = StoredSession(
         user_id="u1",
@@ -50,7 +52,12 @@ def login(monkeypatch):
 
 
 def make_client(handler):
-    return SaasClient("https://team.example", "old", _http=httpx.Client(transport=httpx.MockTransport(handler)))
+    def admitted_transport(request):
+        if "repo-admission" in request.url.path:
+            return httpx.Response(200, json={"admitted": True, "repo_slug": "acme/project", "team": {"id": "team", "slug": "team"}})
+        return handler(request)
+
+    return SaasClient("https://team.example", "old", project_root=Path("/synthetic/project"), _http=httpx.Client(transport=httpx.MockTransport(admitted_transport)))
 
 
 def test_widen_uses_rotated_token(login):
@@ -159,9 +166,15 @@ def test_legacy_credential_file_is_ignored_in_consumer_contract():
 
 def test_prerequisite_timeout_reaches_canonical_transport(login):
     sent = []
-    client = make_client(lambda request: sent.append(request) or httpx.Response(200, json={}))
+
+    def handler(request):
+        sent.append(request)
+        return httpx.Response(200, json={"admitted": True, "repo_slug": "acme/project", "team": {"id": "team", "slug": "team"}})
+
+    client = SaasClient("https://team.example", "old", project_root=Path("/synthetic/project"), _http=httpx.Client(transport=httpx.MockTransport(handler)))
     client.get_team_integrations("team")
-    assert sent[0].extensions["timeout"]["read"] == 0.5
+    assert len(sent) == 2
+    assert [request.extensions["timeout"]["read"] for request in sent] == [0.5, 0.5]
 
 
 def test_widen_from_encrypted_login_and_logout(login, monkeypatch, tmp_path):
@@ -186,6 +199,9 @@ def test_widen_from_encrypted_login_and_logout(login, monkeypatch, tmp_path):
     project.mkdir()
     assert not (project / ".kittify" / "saas-auth.json").exists()
     with respx.mock as router:
+        router.get("https://team.example/api/v1/sync/repo-admission/").mock(
+            return_value=httpx.Response(200, json={"admitted": True, "repo_slug": "acme/project", "team": {"id": "team", "slug": "team"}})
+        )
         endpoint = router.post("https://team.example/a/team/collaboration/decision-points/decision/widen").mock(return_value=httpx.Response(200, json={}))
         client = SaasClient.from_env(project)
         client.post_widen("decision", [7])
@@ -196,3 +212,21 @@ def test_widen_from_encrypted_login_and_logout(login, monkeypatch, tmp_path):
             client.post_widen("decision", [7])
         assert endpoint.call_count == 1
         assert storage.read() is None
+
+
+def test_widen_read_timeout_never_replays_or_falls_back(login, monkeypatch):
+    from specify_cli.saas_client.errors import SaasTimeoutError
+
+    fallback = MagicMock(side_effect=AssertionError("mutation replay is forbidden"))
+    monkeypatch.setattr("specify_cli.auth.http.transport.request_with_stdlib_fallback_sync", fallback)
+    sent = []
+
+    def timed_out(request):
+        sent.append(request)
+        raise httpx.ReadTimeout("response lost after server accepted request", request=request)
+
+    client = make_client(timed_out)
+    with pytest.raises(SaasTimeoutError):
+        client.post_widen("decision", [7])
+    assert len(sent) == 1
+    fallback.assert_not_called()

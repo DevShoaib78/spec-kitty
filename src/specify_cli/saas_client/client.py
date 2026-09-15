@@ -112,6 +112,7 @@ class SaasClient:
             client=_http,
             timeout=timeout,
             before_send=self._validate_send_token,
+            retry_transport_errors=False,
         )
 
     # ------------------------------------------------------------------
@@ -280,17 +281,21 @@ class SaasClient:
         if session.issuer_url is not None and session.issuer_url.strip().rstrip("/") != self._base_url:
             raise SaasConsentError("target_authority_mismatch: session issuer differs from SaaS destination")
 
-    def _resolve_team_slug(self, team_slug: str | None = None) -> str:
+    def _resolve_team_slug(self, team_slug: str | None = None, *, timeout: float | None = None) -> str:
         authority = self._current_authority()
-        slug = resolve_project_team_slug(self._project_root, authority[2], self.check_repo_admission)
+        slug = resolve_project_team_slug(
+            self._project_root,
+            authority[2],
+            lambda repo_slug, host: self.check_repo_admission(repo_slug, host, timeout=timeout),
+        )
         if team_slug is not None and team_slug.strip() != slug:
             raise SaasConsentError("target_authority_mismatch: collaborative team path substitution refused")
         if self._team_slug is not None and self._team_slug.strip() != slug:
             raise SaasConsentError("target_authority_mismatch: collaborative team path substitution refused")
         return slug
 
-    def _team_path(self, team_slug: str | None, path: str) -> str:
-        return f"/a/{self._resolve_team_slug(team_slug)}/collaboration{path}"
+    def _team_path(self, team_slug: str | None, path: str, *, timeout: float | None = None) -> str:
+        return f"/a/{self._resolve_team_slug(team_slug, timeout=timeout)}/collaboration{path}"
 
     # ------------------------------------------------------------------
     # Public endpoint methods
@@ -370,7 +375,8 @@ class SaasClient:
 
         ``GET /a/{team_slug}/collaboration/integrations/``
 
-        Used by the prereq checker (500ms timeout — it is a fast probe).
+        Used by the prereq checker: admission and integration requests each use
+        a 500ms timeout; neither retries ambiguous transport failures.
 
         Args:
             team_slug: The team's URL slug.
@@ -382,7 +388,7 @@ class SaasClient:
             SaasClientError: On any HTTP or network failure.
             SaasTimeoutError: If the request exceeds the 500ms probe timeout.
         """
-        path = self._team_path(team_slug, "/integrations/")
+        path = self._team_path(team_slug, "/integrations/", timeout=_TIMEOUT_PREREQ_PROBE)
         resp = self._get(path, timeout=_TIMEOUT_PREREQ_PROBE)
         data = resp.json()
         if isinstance(data, list):
@@ -455,7 +461,7 @@ class SaasClient:
             message_count=int(data.get("message_count", len(messages))),
         )
 
-    def check_repo_admission(self, repo_slug: str, host: str | None = None) -> AdmissionAnswer:
+    def check_repo_admission(self, repo_slug: str, host: str | None = None, *, timeout: float | None = None) -> AdmissionAnswer:
         """Check which team (if any) ``repo_slug`` is admitted into.
 
         ``GET /api/v1/sync/repo-admission/?repo_slug=<>&host=<>``
@@ -492,7 +498,7 @@ class SaasClient:
         if host is not None:
             params["host"] = host
         path = f"/api/v1/sync/repo-admission/?{urlencode(params)}"
-        resp = self._get(path)
+        resp = self._get(path, timeout=timeout)
         try:
             data = resp.json()
         except ValueError as exc:
