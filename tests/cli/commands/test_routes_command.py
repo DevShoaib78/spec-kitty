@@ -278,6 +278,23 @@ def test_cached_negative_answers_offline_even_with_nothing_configured_to_authent
 # --- not admitted -----------------------------------------------------------
 
 
+def test_no_match_reports_access_scope_and_account_recovery(state_root: Path, auth_env: None, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Foreign-team and genuinely unadmitted repos share a non-disclosing answer."""
+    gateway = ScriptedGateway(admission={"admitted": False, "reason": "no_match"})
+    _script_gateway(monkeypatch, gateway)
+
+    result = runner.invoke(app, ["routes"])
+
+    assert result.exit_code == 0
+    assert "No accessible team route found" in result.stdout
+    assert "not admitted to any team" not in result.stdout
+    assert "A repo no team admits" not in result.stdout
+    assert "spec-kitty auth status" in result.stdout
+    assert "spec-kitty auth login --force" in result.stdout
+    assert "SPEC_KITTY_SAAS_TOKEN" in result.stdout
+    assert gateway.mint_calls == []
+
+
 def test_not_admitted_prints_the_verdict_and_no_relay(state_root: Path, auth_env: None, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """E2E-MVP step 3.2: a repo no team admits produces nothing anywhere —
     that verdict is the system working, so exit zero."""
