@@ -390,7 +390,11 @@ main()
         assert writes[target] == 0
     finished = snapshot({"project": project})
     again = run_process([sys.executable, "-m", "specify_cli", "init", "--ai", agents, "--non-interactive"], project, env)
-    assert again.returncode == 0 and "Already initialized" in again.stdout
+    if authored_after_fault and "vibe" in agents.split(","):
+        assert again.returncode == 1
+        assert "spec-kitty agent config add vibe" in " ".join(again.stdout.split())
+    else:
+        assert again.returncode == 0 and "Already initialized" in again.stdout
     assert_unchanged(finished, snapshot({"project": project}))
 
 

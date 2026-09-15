@@ -708,7 +708,8 @@ def init(  # noqa: C901
     if _config_yaml.exists():
         try:
             resumed = _resume_command_delivery(project_path)
-            _check_initialized_command_skills(project_path, ai_assistant)
+            if not resumed:
+                _check_initialized_command_skills(project_path, ai_assistant)
         except (OSError, ValueError, AgentConfigError) as exc:
             _console.print(f"[red]Initialization incomplete:[/red] {exc}")
             raise typer.Exit(1) from exc
