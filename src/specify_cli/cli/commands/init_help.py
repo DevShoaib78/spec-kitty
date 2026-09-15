@@ -7,7 +7,12 @@ Creates project files only. Does not initialize a git repository.
 Does not create any commits.
 
 If PROJECT_NAME is omitted, init runs in the current directory.
-Re-running init in an already-initialized directory exits cleanly (idempotent).
+Re-running init in an already-initialized directory is idempotent for project
+state: it verifies the configured agents' skill surfaces, additively restoring
+missing per-agent skill roots (e.g. .claude/skills/) through the canonical
+installer, and exits 1 with the recovery command
+`spec-kitty agent config sync --create-missing --keep-orphaned` when shared
+command skills (codex/vibe/pi/letta) are missing or empty.
 
 Note: The --no-git flag from previous versions has been removed.
       init never touches git state regardless of flags.

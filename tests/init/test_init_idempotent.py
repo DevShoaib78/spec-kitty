@@ -117,6 +117,85 @@ def test_initialized_clone_rejects_unusable_skills(monkeypatch, tmp_path, agent,
     assert config.read_text() == f"agents:\n  available: [{agent}]\n"
 
 
+@pytest.mark.parametrize("agent", ["claude", "qwen", "kilocode"])
+def test_initialized_clone_restores_native_agent_skills(monkeypatch, tmp_path, agent):
+    """A clone re-run restores the gitignored NATIVE skill root (#4425)."""
+    import subprocess
+
+    from specify_cli.core.config import AGENT_SKILL_CONFIG
+    from specify_cli.skills.registry import SkillRegistry
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    config.write_text(f"agents:\n  available: [{agent}]\n", encoding="utf-8")
+    mission = tmp_path / "kitty-specs/existing/spec.md"
+    mission.parent.mkdir(parents=True)
+    mission.write_text("Keep existing mission", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    app, buf = _make_app_with_buf()
+    result = _run(app, ["init", "--ai", agent, "--non-interactive"])
+    assert result.exit_code == 0, buf.getvalue()
+    skills = SkillRegistry.from_package().discover_skills()
+    assert skills, "packaged skill registry is empty"
+    root = AGENT_SKILL_CONFIG[agent]["skill_roots"][0]
+    for skill in skills:
+        assert (tmp_path / root / skill.name / "SKILL.md").stat().st_size > 0
+    assert config.read_text() == f"agents:\n  available: [{agent}]\n"
+    assert mission.read_text() == "Keep existing mission"
+    before = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    app2, buf2 = _make_app_with_buf()
+    assert _run(app2, ["init", "--ai", agent, "--non-interactive"]).exit_code == 0, buf2.getvalue()
+    after = {p.relative_to(tmp_path): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    assert after == before
+
+
+def test_initialized_clone_restore_preserves_user_skills(monkeypatch, tmp_path):
+    """The NATIVE restore is additive: existing files are never overwritten (#4425 acceptance 3)."""
+    import subprocess
+
+    from specify_cli.skills.registry import SkillRegistry
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    config.write_text("agents:\n  available: [claude]\n", encoding="utf-8")
+    third_party = tmp_path / ".claude/skills/custom-tool/SKILL.md"
+    third_party.parent.mkdir(parents=True)
+    third_party.write_text("Keep custom skill", encoding="utf-8")
+    edited = tmp_path / ".claude/skills/spec-kitty/SKILL.md"
+    edited.parent.mkdir(parents=True)
+    edited.write_text("Keep user-edited skill", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    app, buf = _make_app_with_buf()
+    result = _run(app, ["init", "--ai", "claude", "--non-interactive"])
+    assert result.exit_code == 0, buf.getvalue()
+    assert third_party.read_text() == "Keep custom skill"
+    assert edited.read_text() == "Keep user-edited skill"
+    for skill in SkillRegistry.from_package().discover_skills():
+        if skill.name in {"custom-tool", "spec-kitty"}:
+            continue
+        assert (tmp_path / ".claude/skills" / skill.name / "SKILL.md").stat().st_size > 0
+
+
+@pytest.mark.parametrize("agent", ["claude", "qwen"])
+def test_initialized_clone_restore_rejects_unsafe_roots(monkeypatch, tmp_path, agent):
+    """An unsafe per-agent root fails closed without writing anything (#4425)."""
+    config = tmp_path / ".kittify/config.yaml"
+    config.parent.mkdir()
+    config.write_text(f"agents:\n  available: [{agent}]\n", encoding="utf-8")
+    root = {"claude": ".claude", "qwen": ".qwen"}[agent]
+    (tmp_path / root).write_text("not a directory", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    app, buf = _make_app_with_buf()
+    result = _run(app, ["init", "--non-interactive"])
+    assert result.exit_code == 1
+    assert "Initialization incomplete" in " ".join(buf.getvalue().split())
+    assert not (tmp_path / ".gitignore").exists()
+    assert (tmp_path / root).read_text() == "not a directory"
+    assert config.read_text() == f"agents:\n  available: [{agent}]\n"
+
+
 def _make_app_with_buf() -> tuple[Typer, io.StringIO]:
     """Return app and the buffer backing the injected console."""
     buf = io.StringIO()
