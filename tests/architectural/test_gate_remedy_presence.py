@@ -181,11 +181,9 @@ _REGISTERED_GATES: tuple[_RegisteredGate, ...] = (
     # check is proven against a KNOWN-GOOD remedy this WP did not write, not
     # only the ones it did. Chosen for independence (#4315): the
     # golden-count gate this exemplar previously pointed at was retired
-    # outright, and the two passing candidates in
-    # test_ruff_format_exclude_ratchet.py guard the exclude list this
-    # mission's own commits change, so neither is "a remedy this mission did
-    # not author" in spirit. test_ruff_format_enforcement.py is untouched by
-    # this mission and predates it (#473/#558).
+    # outright. The whole-repository Ruff format property predates this
+    # mission (#473/#558) and remains the terminal enforcement surface after
+    # #4506 retired its fully drained formatter-debt exclusion.
     _RegisteredGate(
         "tests/architectural/test_ruff_format_enforcement.py",
         "test_ruff_format_check_is_clean_on_whole_repo",
