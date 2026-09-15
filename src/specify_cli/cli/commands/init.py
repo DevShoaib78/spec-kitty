@@ -182,6 +182,32 @@ def _resume_command_delivery(project: Path) -> bool:
     return True
 
 
+def _check_initialized_command_skills(project: Path, requested: str | None) -> None:
+    """Diagnose clone-local delivery gaps without rewriting initialized projects."""
+    from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+    from specify_cli.skills.paths import skill_path_observations
+
+    configured = load_agent_config(project).available
+    selected = list(dict.fromkeys(part.strip().lower() for part in requested.replace(";", ",").split(",") if part.strip())) if requested is not None else configured
+    if requested is not None and (not selected or any(agent not in AI_CHOICES for agent in selected)):
+        raise ValueError("Invalid --ai selection; choose from: " + ", ".join(AI_CHOICES))
+    unconfigured = [agent for agent in selected if agent not in configured]
+    if unconfigured:
+        raise ValueError("Requested agents are not configured. Run: spec-kitty agent config add " + " ".join(unconfigured))
+    if not _COMMAND_SKILL_AGENTS.intersection(selected):
+        return
+    missing = []
+    for command in CANONICAL_COMMANDS:
+        path = project / f".agents/skills/spec-kitty.{command}/SKILL.md"
+        observations = skill_path_observations(project, path)
+        if observations[-1].state.kind != "file" or path.stat().st_size == 0:
+            missing.append(command)
+    if missing:
+        raise ValueError(
+            "Configured agent command skills are missing or empty: " + ", ".join(missing) + ". Run: spec-kitty agent config sync --create-missing --keep-orphaned"
+        )
+
+
 _GITHUB_DIFF_GITATTRIBUTES_ENTRIES = (
     "kitty-specs/**/status.json linguist-generated=true",
     "kitty-specs/**/status.events.jsonl linguist-generated=true",
@@ -682,6 +708,7 @@ def init(  # noqa: C901
     if _config_yaml.exists():
         try:
             resumed = _resume_command_delivery(project_path)
+            _check_initialized_command_skills(project_path, ai_assistant)
         except (OSError, ValueError, AgentConfigError) as exc:
             _console.print(f"[red]Initialization incomplete:[/red] {exc}")
             raise typer.Exit(1) from exc
