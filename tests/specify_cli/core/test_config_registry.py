@@ -6,7 +6,7 @@ Asserts that after the WP04 edits:
 - ``codex`` is NOT in AGENT_COMMAND_CONFIG.
 - ``vibe``, ``pi``, and ``letta`` are NOT in AGENT_COMMAND_CONFIG.
 - Command-skill agents have class SKILL_CLASS_SHARED with .agents/skills/ as root.
-- The twelve non-migrated command-layer agents are still present in AGENT_COMMAND_CONFIG.
+- The thirteen non-migrated command-layer agents are still present in AGENT_COMMAND_CONFIG.
 - ``llxprt`` is a command-layer agent (AGENT_COMMAND_CONFIG + AGENT_DIRS) that
   also consumes Agent Skills, so it carries the shared skill class with
   ``.agents/skills/`` and its own ``.llxprt/skills/`` root.

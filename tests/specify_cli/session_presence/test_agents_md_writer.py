@@ -2,7 +2,7 @@
 
 Covers:
 - AgentsMdWriter functional behaviour (can_write, has_presence, write, remove)
-- Registry completeness: all 16 expected harness keys present (roo removed 2026-05-15)
+- Registry completeness: all 17 expected harness keys present (roo removed 2026-05-15; llxprt added)
 - Pattern B harness registry spot-checks
 - check_dir refinement to MarkdownRulesWriter.can_write()
 """
@@ -158,7 +158,7 @@ class TestAgentsMdWriterRemove:
 
 class TestRegistryCompleteness:
     def test_all_expected_keys_present(self) -> None:
-        """WRITER_REGISTRY must cover all 18 harness keys — no silent gaps."""
+        """WRITER_REGISTRY must cover all 17 harness keys — no silent gaps."""
         missing = EXPECTED_REGISTRY_KEYS - set(WRITER_REGISTRY.keys())
         assert not missing, f"Registry is missing keys: {sorted(missing)}"
 
