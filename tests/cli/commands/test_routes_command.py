@@ -272,7 +272,7 @@ def test_cached_negative_answers_offline_even_with_nothing_configured_to_authent
 
     result = runner.invoke(app, ["routes"])
     assert result.exit_code == 0
-    assert "not admitted to any team — no relay" in result.stdout
+    assert "No accessible team route found — no relay" in result.stdout
 
 
 # --- not admitted -----------------------------------------------------------
@@ -303,7 +303,7 @@ def test_not_admitted_prints_the_verdict_and_no_relay(state_root: Path, auth_env
 
     result = runner.invoke(app, ["routes"])
     assert result.exit_code == 0
-    assert "not admitted to any team — no relay" in result.stdout
+    assert "No accessible team route found — no relay" in result.stdout
     assert "no team admits acme/widget" in result.stdout
     negative = credentials.load_negative(repo="github.com/acme/widget")
     assert negative is not None  # remembered, exactly as a transition would
@@ -316,7 +316,7 @@ def test_cached_negative_answers_offline(state_root: Path, auth_env: None, clone
 
     result = runner.invoke(app, ["routes"])
     assert result.exit_code == 0
-    assert "not admitted to any team — no relay" in result.stdout
+    assert "No accessible team route found — no relay" in result.stdout
 
 
 def test_cached_negative_is_loaded_once_for_routes(state_root: Path, auth_env: None, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -461,7 +461,7 @@ def test_unadmitted_repo_through_the_login_session_prints_the_verdict(state_root
 
     result = runner.invoke(app, ["routes"])
     assert result.exit_code == 0
-    assert "not admitted to any team — no relay" in result.stdout
+    assert "No accessible team route found — no relay" in result.stdout
 
 
 def test_checkout_without_a_hosted_remote_has_nothing_to_ask(
