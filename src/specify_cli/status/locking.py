@@ -189,10 +189,7 @@ def _read_holder(lock_path: Path) -> dict[str, Any] | None:
 def _describe_holder(holder: dict[str, Any] | None) -> str:
     if holder is None:
         return "holder unknown (no holder record)"
-    return (
-        f"held by pid {holder.get('pid', '?')} "
-        f"(thread {holder.get('thread', '?')}) since {holder.get('acquired_at', '?')}"
-    )
+    return f"held by pid {holder.get('pid', '?')} (thread {holder.get('thread', '?')}) since {holder.get('acquired_at', '?')}"
 
 
 def _build_timeout_error(lock_path: Path, timeout: float) -> FeatureStatusLockTimeoutError:
@@ -285,8 +282,6 @@ def project_event_log_lock(
     bookkeeping. Serializes every writer of the project-level canonical event
     log, independently of any mission-level lock (F2-T1, F2.md section 3.3).
     """
-    lock_path = (
-        _git_common_dir(repo_root) / LOCK_DIRECTORY / f"{_PROJECT_LOCK_SENTINEL}.status.lock"
-    )
+    lock_path = _git_common_dir(repo_root) / LOCK_DIRECTORY / f"{_PROJECT_LOCK_SENTINEL}.status.lock"
     with _named_status_lock(lock_path, timeout=timeout) as held_path:
         yield held_path

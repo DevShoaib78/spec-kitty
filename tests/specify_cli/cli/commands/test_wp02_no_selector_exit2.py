@@ -6,6 +6,7 @@ mission_resolve_command, accept), verifies that:
 2. Omitting ``--mission`` exits with code 2 and a readable message.
 3. No uncaught TypeError escapes.
 """
+
 from __future__ import annotations
 import pathlib
 import pytest
@@ -25,12 +26,14 @@ class TestNextNoSelector:
 
     def test_no_mission_raises_bad_parameter(self):
         from specify_cli.cli.commands.next_cmd import _resolve_mission_slug
+
         with pytest.raises(typer.BadParameter) as exc:
             _resolve_mission_slug(None, pathlib.Path("/tmp"))
         assert "--mission" in str(exc.value)
 
     def test_no_mission_no_type_error(self):
         from specify_cli.cli.commands.next_cmd import _resolve_mission_slug
+
         try:
             _resolve_mission_slug(None, pathlib.Path("/tmp"))
         except typer.BadParameter:
@@ -43,6 +46,7 @@ class TestResearchNoSelector:
     def test_feature_flag_rejected_exit2(self):
         app = typer.Typer()
         from specify_cli.cli.commands.research import research
+
         app.command()(research)
         result = runner.invoke(app, ["--feature", "some-slug"])
         assert result.exit_code == 2, result.output
@@ -51,6 +55,7 @@ class TestResearchNoSelector:
     def test_no_mission_exit2_readable_message(self):
         app = typer.Typer()
         from specify_cli.cli.commands.research import research
+
         app.command()(research)
         result = runner.invoke(app, [])
         assert result.exit_code == 2, result.output
@@ -59,6 +64,7 @@ class TestResearchNoSelector:
     def test_no_mission_no_type_error(self):
         app = typer.Typer()
         from specify_cli.cli.commands.research import research
+
         app.command()(research)
         result = runner.invoke(app, [])
         assert not isinstance(result.exception, TypeError)

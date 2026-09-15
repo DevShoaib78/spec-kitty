@@ -79,11 +79,7 @@ def test_planning_workflow_no_worktrees(test_project):
 
     # Step 1: Create feature
     result = subprocess.run(
-        ["spec-kitty", "agent", "feature", "create-feature", "test-feature", "--json"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True
+        ["spec-kitty", "agent", "feature", "create-feature", "test-feature", "--json"], cwd=repo_root, capture_output=True, text=True, check=True
     )
     feature_data = json.loads(result.stdout)
     feature_slug = feature_data["feature"]
@@ -99,13 +95,7 @@ def test_planning_workflow_no_worktrees(test_project):
     assert spec_file.exists()
 
     # Check git log for spec commit
-    log_result = subprocess.run(
-        ["git", "log", "--oneline", "-1"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True
-    )
+    log_result = subprocess.run(["git", "log", "--oneline", "-1"], cwd=repo_root, capture_output=True, text=True, check=True)
     assert "Add spec for feature" in log_result.stdout
 
     # Verify NO worktree created
@@ -121,7 +111,7 @@ def test_planning_workflow_no_worktrees(test_project):
         cwd=feature_dir,  # Run from feature directory
         capture_output=True,
         text=True,
-        check=True
+        check=True,
     )
     plan_data = json.loads(result.stdout)
     plan_file = Path(plan_data["plan_file"])
@@ -131,13 +121,7 @@ def test_planning_workflow_no_worktrees(test_project):
     assert plan_file == feature_dir / "plan.md"
 
     # Check git log for plan commit
-    log_result = subprocess.run(
-        ["git", "log", "--oneline", "-2"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True
-    )
+    log_result = subprocess.run(["git", "log", "--oneline", "-2"], cwd=repo_root, capture_output=True, text=True, check=True)
     assert "Add plan for feature" in log_result.stdout
 
     # Still no worktree
@@ -220,13 +204,7 @@ Implementation details
 """)
 
     # Step 4: Run finalize-tasks to parse dependencies and commit
-    result = subprocess.run(
-        ["spec-kitty", "agent", "feature", "finalize-tasks", "--json"],
-        cwd=feature_dir,
-        capture_output=True,
-        text=True,
-        check=True
-    )
+    result = subprocess.run(["spec-kitty", "agent", "feature", "finalize-tasks", "--json"], cwd=feature_dir, capture_output=True, text=True, check=True)
     finalize_data = json.loads(result.stdout)
     assert finalize_data["result"] == "success"
 
@@ -241,13 +219,7 @@ Implementation details
     assert "WP02" in wp03_content  # Should have dependency on WP02
 
     # Verify tasks committed to main
-    log_result = subprocess.run(
-        ["git", "log", "--oneline", "-1"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True
-    )
+    log_result = subprocess.run(["git", "log", "--oneline", "-1"], cwd=repo_root, capture_output=True, text=True, check=True)
     assert "Add tasks for feature" in log_result.stdout
 
     # Final verification: No WP worktrees created
@@ -263,11 +235,7 @@ def test_circular_dependency_detection(test_project):
 
     # Create feature
     result = subprocess.run(
-        ["spec-kitty", "agent", "feature", "create-feature", "circular-test", "--json"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True
+        ["spec-kitty", "agent", "feature", "create-feature", "circular-test", "--json"], cwd=repo_root, capture_output=True, text=True, check=True
     )
     feature_data = json.loads(result.stdout)
     feature_dir = Path(feature_data["feature_dir"])
@@ -303,7 +271,7 @@ lane: "planned"
         cwd=feature_dir,
         capture_output=True,
         text=True,
-        check=False  # Expect failure
+        check=False,  # Expect failure
     )
 
     # Should fail due to circular dependency

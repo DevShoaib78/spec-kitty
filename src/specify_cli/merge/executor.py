@@ -207,9 +207,7 @@ def _capture_pre_target_gate_artifacts(run: _MergeRunState) -> None:
     here pre-merge and this snapshot is empty/``None`` — a genuine no-op for
     :func:`_restore_regressed_gate_artifacts` below.
     """
-    run.pre_target_gate_artifact_snapshots = _capture_merge_snapshots(
-        run.main_repo, *_gate_artifact_paths(run)
-    )
+    run.pre_target_gate_artifact_snapshots = _capture_merge_snapshots(run.main_repo, *_gate_artifact_paths(run))
 
 
 def _restore_regressed_gate_artifacts(run: _MergeRunState) -> None:
@@ -352,19 +350,13 @@ def _phase_gates_and_state(run: _MergeRunState) -> None:
     lanes_manifest = run.lanes_manifest
 
     if run.is_resume:
-        console.print(
-            f"[bold cyan]Resuming[/bold cyan] merge for {run.mission_slug} "
-            f"({len(run.state.completed_wps)}/{len(run.state.wp_order)} WPs already done)"
-        )
+        console.print(f"[bold cyan]Resuming[/bold cyan] merge for {run.mission_slug} ({len(run.state.completed_wps)}/{len(run.state.wp_order)} WPs already done)")
 
     console.print(f"[bold]Lane-based merge for {run.mission_slug}[/bold]")
     console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
     console.print(f"  Lanes: {', '.join(ln.lane_id for ln in lanes_manifest.lanes)}")
     if run.planning_artifact_only:
-        console.print(
-            "  [dim]Planning-artifact-only mission: target branch already "
-            "contains deliverables; branch merge steps will be skipped.[/dim]"
-        )
+        console.print("  [dim]Planning-artifact-only mission: target branch already contains deliverables; branch merge steps will be skipped.[/dim]")
 
     policy = load_policy_config(run.main_repo)
     gate_eval = evaluate_merge_gates(
@@ -403,9 +395,7 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
     lanes_manifest = run.lanes_manifest
     for lane in lanes_manifest.lanes:
         if run.planning_artifact_only and is_planning_lane(lane):
-            console.print(
-                f"  [green]✓[/green] {lane.lane_id} already on {lanes_manifest.target_branch}"
-            )
+            console.print(f"  [green]✓[/green] {lane.lane_id} already on {lanes_manifest.target_branch}")
             continue
 
         # FR-004 / FR-009: skip branch integration ONLY when EVERY WP in the lane
@@ -413,13 +403,8 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
         # never have been created — the #2945 shape). A mixed lane (survivors +
         # canceled) still integrates its survivors, so this guard requires ALL
         # WPs excluded, never merely any.
-        if lane.wp_ids and all(
-            wp in run.excluded_canceled_wp_ids for wp in lane.wp_ids
-        ):
-            console.print(
-                f"  [dim]Skipping {lane.lane_id} (all WPs canceled with "
-                "provenance — acceptable ending, no branch to integrate)[/dim]"
-            )
+        if lane.wp_ids and all(wp in run.excluded_canceled_wp_ids for wp in lane.wp_ids):
+            console.print(f"  [dim]Skipping {lane.lane_id} (all WPs canceled with provenance — acceptable ending, no branch to integrate)[/dim]")
             continue
 
         # FR-037: skip ONLY when the lane branch is already fully integrated into
@@ -429,13 +414,8 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
             lane.lane_id,
             planning_base_branch=lanes_manifest.target_branch,
         )
-        if not is_planning_lane(lane) and _lane_already_integrated(
-            run.main_repo, _lane_branch, lanes_manifest.mission_branch
-        ):
-            console.print(
-                f"  [dim]Skipping {lane.lane_id} (already integrated into "
-                f"{lanes_manifest.mission_branch})[/dim]"
-            )
+        if not is_planning_lane(lane) and _lane_already_integrated(run.main_repo, _lane_branch, lanes_manifest.mission_branch):
+            console.print(f"  [dim]Skipping {lane.lane_id} (already integrated into {lanes_manifest.mission_branch})[/dim]")
             continue
         run.any_lane_had_unintegrated_code = True
 
@@ -476,16 +456,12 @@ def _phase_baseline_and_surface(run: _MergeRunState) -> None:
     # ``-coord`` husk for a coord-topology mission → a None/wrong baseline id.
     # ``run.feature_dir`` stays the coord STATUS leg, untouched (C-001).
     try:
-        run.baseline_mission_id = resolve_mission_identity(
-            run.target_feature_dir
-        ).mission_id
+        run.baseline_mission_id = resolve_mission_identity(run.target_feature_dir).mission_id
     except Exception:  # noqa: BLE001 — meta.json may be missing/corrupt for legacy missions
         run.baseline_mission_id = None
 
     status_surface_path = resolve_status_surface(run.main_repo, run.mission_slug)
-    run.done_marked_before_target = (
-        is_under_worktrees_segment(status_surface_path) and not run.planning_artifact_only
-    )
+    run.done_marked_before_target = is_under_worktrees_segment(status_surface_path) and not run.planning_artifact_only
     run.canonical_events_path = status_surface_path
     run.canonical_status_path = status_surface_path.parent / _STATUS_FILENAME
     run.merge_state_path = get_state_path(run.main_repo, run.state.mission_id)
@@ -495,10 +471,7 @@ def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
     """Bake mission_number on the mission branch and pre-target done bookkeeping."""
     lanes_manifest = run.lanes_manifest
     if run.planning_artifact_only:
-        console.print(
-            f"  [dim]Skipping mission branch merge; {lanes_manifest.target_branch} "
-            "is the planning artifact branch.[/dim]"
-        )
+        console.print(f"  [dim]Skipping mission branch merge; {lanes_manifest.target_branch} is the planning artifact branch.[/dim]")
         run.mission_already_applied = True
         return
 
@@ -544,9 +517,7 @@ def _phase_bake_and_pre_target_done(run: _MergeRunState) -> None:
                 all_wp_ids=run.all_wp_ids,
             )
         except Exception as exc:
-            _restore_and_guard_coord_coherence(
-                run, run.pre_target_bookkeeping_snapshots, error=exc
-            )
+            _restore_and_guard_coord_coherence(run, run.pre_target_bookkeeping_snapshots, error=exc)
             raise
 
 
@@ -563,9 +534,7 @@ def _capture_pre_target_coord_ref_sha(run: _MergeRunState) -> None:
     rollback revert is a proven no-op.
     """
     try:
-        coord_ref = resolve_placement_only(
-            run.main_repo, run.mission_slug, kind=MissionArtifactKind.STATUS_STATE
-        ).ref
+        coord_ref = resolve_placement_only(run.main_repo, run.mission_slug, kind=MissionArtifactKind.STATUS_STATE).ref
     except Exception:  # noqa: BLE001 — unresolvable placement: skip the coherent revert
         return
     ret, sha, _err = run_command(
@@ -588,9 +557,7 @@ def _coord_reconcile_read_feature_dir(run: _MergeRunState) -> Path:
     (``kitty-specs/<slug>/status.events.jsonl``) and the legacy-parse dir match
     the placement the rollback used — no ``-coord`` husk, no re-resolution drift.
     """
-    feature_dir: Path = placement_seam(run.main_repo, run.mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    feature_dir: Path = placement_seam(run.main_repo, run.mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     return feature_dir
 
 
@@ -618,9 +585,7 @@ def _capture_pre_target_done_write_set(run: _MergeRunState) -> None:
             feature_dir=_coord_reconcile_read_feature_dir(run),
         )
     )
-    run.pre_target_done_write_set = [
-        wp for wp in run.all_wp_ids if wp not in pre_existing_done
-    ]
+    run.pre_target_done_write_set = [wp for wp in run.all_wp_ids if wp not in pre_existing_done]
 
 
 def _coord_worktree_root(run: _MergeRunState) -> Path | None:
@@ -699,17 +664,14 @@ def _revert_coord_done_commit(run: _MergeRunState) -> None:
             env=env,
         )
         logger.warning(
-            "#2711: could not revert coordination 'done' commit(s) on %s (%s..HEAD); "
-            "committed/working coherence may be degraded: %s",
+            "#2711: could not revert coordination 'done' commit(s) on %s (%s..HEAD); committed/working coherence may be degraded: %s",
             coord_ref,
             captured_sha[:12],
             (revert.stderr or revert.stdout or "").strip(),
         )
 
 
-def _persist_coord_reconcile_marker(
-    run: _MergeRunState, error: BaseException | None
-) -> None:
+def _persist_coord_reconcile_marker(run: _MergeRunState, error: BaseException | None) -> None:
     """Durably record a stranded committed-coord ``done`` (#2786 / #2367-B FR-005).
 
     Derives the strand set from the COMMITTED coordination ref (never a
@@ -857,11 +819,7 @@ def _handle_mission_merge_result(
     """Process the mission→target result: fail-loud / retry-tolerance / success log."""
     lanes_manifest = run.lanes_manifest
     run.mission_already_applied = getattr(mission_result, "already_applied", False) is True
-    if (
-        run.mission_already_applied
-        and not run.planning_artifact_only
-        and (run.any_lane_had_unintegrated_code or not mission_integrated_into_target)
-    ):
+    if run.mission_already_applied and not run.planning_artifact_only and (run.any_lane_had_unintegrated_code or not mission_integrated_into_target):
         _reject_zero_diff_noop_squash(run)
 
     if not mission_result.success:
@@ -909,9 +867,7 @@ def _phase_mission_to_target(run: _MergeRunState) -> None:
     except Exception:
         _restore_pre_target_if_at_baseline(run)
         raise
-    _handle_mission_merge_result(
-        run, mission_result, mission_integrated_into_target=_mission_integrated_into_target
-    )
+    _handle_mission_merge_result(run, mission_result, mission_integrated_into_target=_mission_integrated_into_target)
 
 
 def _phase_capture_and_baseline(run: _MergeRunState) -> None:
@@ -1076,9 +1032,7 @@ def _run_birth_cutover(run: _MergeRunState) -> None:
     if result.flipped:
         run.birth_cutover_meta_path = run.target_feature_dir / "meta.json"
     elif result.error:
-        logger.warning(
-            "birth-cutover for %s did not reconcile: %s", run.mission_slug, result.error
-        )
+        logger.warning("birth-cutover for %s did not reconcile: %s", run.mission_slug, result.error)
 
     # Commit a genuinely-seeded COORD leg (the migration-coexistence case) onto
     # the coordination branch from ITS OWN worktree. Gated on dirty-state (not
@@ -1140,19 +1094,14 @@ def _commit_coord_seed_events(run: _MergeRunState, status_feature_dir: Path) -> 
             branch=coord_ref,
         )
     except Exception as exc:  # noqa: BLE001 — best-effort, must never abort the merge
-        logger.warning(
-            "birth-cutover coord seed commit failed for %s: %s", run.mission_slug, exc
-        )
+        logger.warning("birth-cutover coord seed commit failed for %s: %s", run.mission_slug, exc)
 
 
 def _phase_porcelain_invariant(run: _MergeRunState) -> None:
     """WP05/T007 FR-014: post-merge working-tree invariant before the housekeeping commit."""
     _ret_status, _out_status = _raw_porcelain_status(run.main_repo)
     if _ret_status != 0:
-        console.print(
-            "[yellow]Warning:[/yellow] post-merge invariant check skipped: "
-            f"git status --porcelain returned {_ret_status}"
-        )
+        console.print(f"[yellow]Warning:[/yellow] post-merge invariant check skipped: git status --porcelain returned {_ret_status}")
         return
 
     expected_paths: set[str] = set()
@@ -1181,27 +1130,14 @@ def _phase_porcelain_invariant(run: _MergeRunState) -> None:
     if not offending_lines:
         return
 
-    console.print(
-        "[red]Error:[/red] Post-merge working-tree invariant violated. "
-        "The following paths diverge from HEAD unexpectedly:"
-    )
+    console.print("[red]Error:[/red] Post-merge working-tree invariant violated. The following paths diverge from HEAD unexpectedly:")
     for line in offending_lines:
         console.print(f"  {line}")
-    deleted_or_modified = any(
-        len(line) >= 2 and (line[1] in ("D", "M") or line[0] in ("D", "M"))
-        for line in offending_lines
-    )
+    deleted_or_modified = any(len(line) >= 2 and (line[1] in ("D", "M") or line[0] in ("D", "M")) for line in offending_lines)
     if deleted_or_modified:
-        console.print(
-            "\nThis may indicate a sparse-checkout or filter-driver issue. Run\n"
-            "  spec-kitty doctor sparse-checkout --fix\n"
-            "before retrying the merge."
-        )
+        console.print("\nThis may indicate a sparse-checkout or filter-driver issue. Run\n  spec-kitty doctor sparse-checkout --fix\nbefore retrying the merge.")
     else:
-        console.print(
-            "\nUnexpected working-tree state after merge. "
-            "Run `git status` to investigate before retrying."
-        )
+        console.print("\nUnexpected working-tree state after merge. Run `git status` to investigate before retrying.")
     _restore_and_guard_coord_coherence(run, run.final_bookkeeping_snapshots)
     raise typer.Exit(1)
 
@@ -1409,10 +1345,7 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
             worktree_root=run.main_repo,
             mission_slug=run.mission_slug,
             branch=run.lanes_manifest.target_branch,
-            message=(
-                f"chore({run.mission_slug}): flatten coordination metadata "
-                f"after branch deletion (#3086)"
-            ),
+            message=(f"chore({run.mission_slug}): flatten coordination metadata after branch deletion (#3086)"),
             paths=(meta_path,),
         )
     except SafeCommitRecoveryFailed as exc:
@@ -1506,11 +1439,7 @@ def _teardown_coord_worktree(run: _MergeRunState) -> None:
     # surfaces the typed ``MissionMetaReadError`` (never a raw
     # ``ValueError``) and PROPAGATES, exactly as the raw read did before.
     _meta_for_teardown = _load_meta(run.feature_dir)
-    _mid8_for_teardown = (
-        str(_meta_for_teardown.get("mid8", "")).strip()
-        if isinstance(_meta_for_teardown, dict)
-        else ""
-    )
+    _mid8_for_teardown = str(_meta_for_teardown.get("mid8", "")).strip() if isinstance(_meta_for_teardown, dict) else ""
     teardown_coordination_topology(
         run.main_repo,
         run.mission_slug,
@@ -1685,18 +1614,11 @@ def _render_stale_findings(stale_report: StaleAssertionReport | None) -> None:
     info_grade = [f for f in stale_report.findings if f.confidence == "info"]
 
     for finding in actionable:
-        console.print(
-            f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}"
-        )
+        console.print(f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}")
     for finding in low_grade:
-        console.print(
-            f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}"
-        )
+        console.print(f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}")
     if info_grade:
-        console.print(
-            f"  Note: {len(info_grade)} message-content assertion(s) skipped "
-            "(info grade) — review manually if diagnostic text changed."
-        )
+        console.print(f"  Note: {len(info_grade)} message-content assertion(s) skipped (info grade) — review manually if diagnostic text changed.")
 
 
 def _run_lane_based_merge_locked(
@@ -1731,9 +1653,7 @@ def _run_lane_based_merge_locked(
     # ``cutover_mission``'s ``status_phase`` flip target). WP08 (T036):
     # dropped the caller-side canonicalizer fold — redundant with the seam's
     # own internal fold for a PRIMARY-partition kind.
-    target_feature_dir = placement_seam(main_repo, mission_slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    target_feature_dir = placement_seam(main_repo, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     # FR-004 / FR-009: exclude canceled-with-provenance WPs from the per-WP
     # done/review derivations. ``all_wp_ids`` feeds the review-artifact
     # consistency gate (:1671), the evidence/canonical-history guards
@@ -1741,15 +1661,8 @@ def _run_lane_based_merge_locked(
     # ``_assert_merged_wps_reached_done`` — a canceled WP has no review artifact
     # and never reaches ``done``, so leaving it in would break the merge on an
     # acceptable ending. Resolved once here and threaded to the lane-consolidation phase.
-    excluded_canceled_wp_ids = frozenset(
-        acceptably_canceled_wp_ids(main_repo, mission_slug)
-    )
-    all_wp_ids = [
-        wp
-        for lane in lanes_manifest.lanes
-        for wp in lane.wp_ids
-        if wp not in excluded_canceled_wp_ids
-    ]
+    excluded_canceled_wp_ids = frozenset(acceptably_canceled_wp_ids(main_repo, mission_slug))
+    all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids if wp not in excluded_canceled_wp_ids]
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
 
     # INV (ordering preserved from the pre-refactor monolith): the review-artifact
@@ -1871,11 +1784,7 @@ def _run_lane_based_merge(
         feature_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
     except CoordinationBranchDeleted as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        console.print(
-            "[yellow]Merge aborted before any state change.[/yellow] "
-            "Recover the mission's status authority, then re-run "
-            "[bold]spec-kitty merge[/bold]."
-        )
+        console.print("[yellow]Merge aborted before any state change.[/yellow] Recover the mission's status authority, then re-run [bold]spec-kitty merge[/bold].")
         raise typer.Exit(1) from exc
     # PRIMARY-partition reads (FR-002 #2185), routed per-leg DIRECTLY (NOT threaded
     # from the ``:887`` ``target_feature_dir`` anchor in the *locked* function): the
@@ -1929,11 +1838,7 @@ def _run_lane_based_merge(
             explicit_remove_worktree=remove_worktree,
         )
     except MissionMetaReadError as exc:
-        console.print(
-            "[red]Error:[/red] Cannot resolve the merge retention policy: "
-            f"{exc}. meta.json exists but is corrupt or unreadable; fix it "
-            "before merging."
-        )
+        console.print(f"[red]Error:[/red] Cannot resolve the merge retention policy: {exc}. meta.json exists but is corrupt or unreadable; fix it before merging.")
         raise typer.Exit(1) from exc
     for warning in retention.warnings:
         console.print(f"[yellow]Warning:[/yellow] {warning}")
@@ -1964,11 +1869,7 @@ def _run_lane_based_merge(
         )
         if not branch_ok:
             assert branch_blocker is not None
-            console.print(
-                "[red]Error:[/red] Missing mission branch: "
-                f"{branch_blocker['expected_branch']}. "
-                f"Run: {branch_blocker['remediation']}"
-            )
+            console.print(f"[red]Error:[/red] Missing mission branch: {branch_blocker['expected_branch']}. Run: {branch_blocker['remediation']}")
             raise typer.Exit(1)
 
     # -- Acquire global merge lock to serialize concurrent merges --

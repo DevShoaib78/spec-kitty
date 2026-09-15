@@ -59,13 +59,13 @@ class UpgradeAttemptRecord:
     ``attempt_id`` is a ULID (26 chars), used as idempotency key.
     """
 
-    attempt_id: str                  # ULID (26 chars), used as idempotency key
-    timestamp: datetime              # UTC datetime of attempt completion
-    install_method: InstallMethod    # which install method was used
-    intent: str                      # RemediationIntent value
+    attempt_id: str  # ULID (26 chars), used as idempotency key
+    timestamp: datetime  # UTC datetime of attempt completion
+    install_method: InstallMethod  # which install method was used
+    intent: str  # RemediationIntent value
     outcome: UpgradeAttemptOutcome
-    exit_code: int | None            # subprocess exit code, or None if aborted
-    target_version: str | None       # target version if known, else None
+    exit_code: int | None  # subprocess exit code, or None if aborted
+    target_version: str | None  # target version if known, else None
 
 
 # ---------------------------------------------------------------------------
@@ -138,11 +138,7 @@ def default_history_db_path() -> Path:
         base = Path.home() / "Library" / "Caches" / "spec-kitty"
     elif sys.platform == "win32":
         local_app_data = os.environ.get("LOCALAPPDATA", "")
-        base = (
-            Path(local_app_data) / "spec-kitty" / "Cache"
-            if local_app_data
-            else Path.home() / "AppData" / "Local" / "spec-kitty" / "Cache"
-        )
+        base = Path(local_app_data) / "spec-kitty" / "Cache" if local_app_data else Path.home() / "AppData" / "Local" / "spec-kitty" / "Cache"
     else:
         # Linux / WSL / other POSIX
         xdg = os.environ.get("XDG_CACHE_HOME", "")

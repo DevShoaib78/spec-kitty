@@ -161,11 +161,7 @@ class TrackerCredentialStore:
             providers = {}
             tracker["providers"] = providers
 
-        providers[provider] = {
-            str(key): value
-            for key, value in values.items()
-            if str(key).strip() and value is not None and str(value).strip()
-        }
+        providers[provider] = {str(key): value for key, value in values.items() if str(key).strip() and value is not None and str(value).strip()}
         self.save(payload)
 
     def clear_provider(self, provider: str) -> None:

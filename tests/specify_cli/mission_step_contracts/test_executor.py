@@ -687,10 +687,7 @@ def test_mission_step_contract_candidate_resolves_to_drg_urn(tmp_path: Path) -> 
             )
         )
 
-    assert (
-        result.steps[0].resolved_delegations[0].urn
-        == "mission_step_contract:child-contract"
-    )
+    assert result.steps[0].resolved_delegations[0].urn == "mission_step_contract:child-contract"
     assert result.steps[0].unresolved_candidates == ()
 
 
@@ -709,9 +706,7 @@ def test_resolve_pack_context_propagates_org_pack_env_var_unset_error(
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
-    error = OrgPackEnvVarUnsetError(
-        "test-pack", "${MISSING_VAR}/pack", "${MISSING_VAR}"
-    )
+    error = OrgPackEnvVarUnsetError("test-pack", "${MISSING_VAR}/pack", "${MISSING_VAR}")
 
     executor = StepContractExecutor(repo_root=repo_root)
     with patch("charter.activation.pack_context.PackContext.from_config", side_effect=error), pytest.raises(OrgPackEnvVarUnsetError):
@@ -875,9 +870,7 @@ def test_load_validated_graph_node_count_increases_by_one_with_org_root(
 # ---------------------------------------------------------------------------
 
 
-def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """A registered org pack whose DRG layout doesn't conform to
     ``load_graph_or_dir`` (no ``graph.yaml``/``*.graph.yaml`` directly at its
     root -- this repo's own ``packs/internal`` is exactly this shape, its
@@ -921,9 +914,7 @@ def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
             "specify_cli.invocation.executor.build_charter_context",
             return_value=context_result,
         ),
-        caplog.at_level(
-            logging.WARNING, logger="specify_cli.mission_step_contracts.executor"
-        ),
+        caplog.at_level(logging.WARNING, logger="specify_cli.mission_step_contracts.executor"),
     ):
         result = StepContractExecutor(
             repo_root=repo_root,
@@ -948,21 +939,14 @@ def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
     # ALSO warns per-pack for this pack's malformed fragment -- an orthogonal,
     # honest signal on a different logger that this assertion deliberately
     # ignores.
-    warnings = [
-        record
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-        and record.name == "specify_cli.mission_step_contracts.executor"
-    ]
+    warnings = [record for record in caplog.records if record.levelno == logging.WARNING and record.name == "specify_cli.mission_step_contracts.executor"]
     assert len(warnings) == 1, [record.getMessage() for record in caplog.records]
     message = warnings[0].getMessage()
     assert str(org_root) in message
     assert "DRGLoadError" in message or "No DRG graph files found" in message
 
 
-def test_well_formed_org_pack_drg_contributes_without_warning(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_well_formed_org_pack_drg_contributes_without_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Negative case for the malformed-org-pack degrade above: a conformant
     org pack (a real ``*.graph.yaml`` directly at its root) must load and
     contribute normally with no degradation warning -- proving the fix
@@ -1002,9 +986,7 @@ def test_well_formed_org_pack_drg_contributes_without_warning(
             "specify_cli.invocation.executor.build_charter_context",
             return_value=context_result,
         ),
-        caplog.at_level(
-            logging.WARNING, logger="specify_cli.mission_step_contracts.executor"
-        ),
+        caplog.at_level(logging.WARNING, logger="specify_cli.mission_step_contracts.executor"),
     ):
         result = StepContractExecutor(
             repo_root=repo_root,
@@ -1188,9 +1170,7 @@ def test_chain_two_org_packs_executor_self_consistency(tmp_path: Path) -> None:
     assert result.steps[0].unresolved_candidates == ()
 
 
-def test_chain_per_root_degrade_pack_a_survives_malformed_pack_b(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_chain_per_root_degrade_pack_a_survives_malformed_pack_b(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """Per-root degrade (#3525 Fold B): a malformed pack #2 drops ONLY pack
     #2 (WARNING) -- pack #1's DRG contribution must still be present.
 
@@ -1216,9 +1196,7 @@ def test_chain_per_root_degrade_pack_a_survives_malformed_pack_b(
 
     write_two_pack_org_config(repo_root, org_root_a, org_root_b)
 
-    with caplog.at_level(
-        logging.WARNING, logger="specify_cli.mission_step_contracts.executor"
-    ):
+    with caplog.at_level(logging.WARNING, logger="specify_cli.mission_step_contracts.executor"):
         result = StepContractExecutor(
             repo_root=repo_root,
             invocation_executor=_FakeInvocationExecutor(),
@@ -1242,12 +1220,7 @@ def test_chain_per_root_degrade_pack_a_survives_malformed_pack_b(
     # ALSO warns per-pack for pack B's malformed fragment -- an orthogonal,
     # honest signal on a different logger that this assertion deliberately
     # ignores.
-    warnings = [
-        record
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-        and record.name == "specify_cli.mission_step_contracts.executor"
-    ]
+    warnings = [record for record in caplog.records if record.levelno == logging.WARNING and record.name == "specify_cli.mission_step_contracts.executor"]
     assert len(warnings) == 1, [record.getMessage() for record in caplog.records]
     message = warnings[0].getMessage()
     assert str(org_root_b) in message

@@ -262,9 +262,7 @@ def _existing_worktree_is_valid(worktree_path: Path) -> bool:
     return is_valid_workspace
 
 
-def _create_workspace_with_fallback(
-    repo_root: Path, worktree_path: Path, branch_name: str
-) -> None:
+def _create_workspace_with_fallback(repo_root: Path, worktree_path: Path, branch_name: str) -> None:
     """Create the worktree via the VCS abstraction, falling back to direct git.
 
     Get VCS implementation and create the workspace (full checkout, no sparse

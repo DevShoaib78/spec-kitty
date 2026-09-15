@@ -141,18 +141,16 @@ def _coord_worktree_root(repo_root: Path, mission_slug: str, *, effective_root: 
 
     scope: dict[str, Any] = effective_root_kwargs(effective_root)
     resolved = resolve_artifact_surface(
-        repo_root, mission_slug, MissionArtifactKind.ACCEPTANCE_MATRIX,
+        repo_root,
+        mission_slug,
+        MissionArtifactKind.ACCEPTANCE_MATRIX,
         **scope,
     )
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
 
     try:
-        worktree_root = Path(
-            run_git(
-                ["rev-parse", "--show-toplevel"], cwd=resolved.path, check=True
-            ).stdout.strip()
-        )
+        worktree_root = Path(run_git(["rev-parse", "--show-toplevel"], cwd=resolved.path, check=True).stdout.strip())
     except TaskCliError:
         return None
 
@@ -204,14 +202,14 @@ def _coord_status_feature_dir(repo_root: Path, mission_slug: str, *, effective_r
 
     scope: dict[str, Any] = effective_root_kwargs(effective_root)
     resolved = resolve_artifact_surface(
-        repo_root, mission_slug, MissionArtifactKind.STATUS_STATE,
+        repo_root,
+        mission_slug,
+        MissionArtifactKind.STATUS_STATE,
         **scope,
     )
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
-    return placement_seam(repo_root, mission_slug, **effective_root_kwargs(effective_root)).read_dir(
-        MissionArtifactKind.STATUS_STATE
-    )
+    return placement_seam(repo_root, mission_slug, **effective_root_kwargs(effective_root)).read_dir(MissionArtifactKind.STATUS_STATE)
 
 
 def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, effective_root: Path | None = None) -> list[str]:
@@ -227,7 +225,9 @@ def _coord_dirty_paths(repo_root: Path, mission_slug: str, *, effective_root: Pa
     against that surface instead.
     """
     worktree_root = _coord_worktree_root(
-        repo_root, mission_slug, **effective_root_kwargs(effective_root),
+        repo_root,
+        mission_slug,
+        **effective_root_kwargs(effective_root),
     )
     if worktree_root is None:
         return []
@@ -307,9 +307,7 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str, *, effec
     from mission_runtime import MissionArtifactKind, placement_seam
 
     scope = effective_root_kwargs(effective_root)
-    feature_dir = placement_seam(repo_root, mission_slug, **scope).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    feature_dir = placement_seam(repo_root, mission_slug, **scope).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     if not feature_dir.is_dir():
         return  # nothing to stamp
 
@@ -331,7 +329,8 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str, *, effec
 
     try:
         result = stamp_accept_cutover(
-            feature_dir, status_feature_dir=status_feature_dir,
+            feature_dir,
+            status_feature_dir=status_feature_dir,
             **({"owned": owned} if owned is not None else {}),
         )
     except MissingMissionIdError:
@@ -346,9 +345,7 @@ def _stamp_birth_cutover_for_accept(repo_root: Path, mission_slug: str, *, effec
         detail = result.error or ("; ".join(result.verify.mismatches) if result.verify else "no verified stamp")
         raise AcceptanceError(f"Owned birth-cutover failed: {detail}")
     if result.error:
-        logger.warning(
-            "birth-cutover for %s did not reconcile: %s", mission_slug, result.error
-        )
+        logger.warning("birth-cutover for %s did not reconcile: %s", mission_slug, result.error)
 
 
 def _commit_primary_residuals(repo_root: Path, mission_slug: str, dirty: list[str]) -> bool:
@@ -421,8 +418,7 @@ def _commit_coord_residuals(repo_root: Path, mission_slug: str, dirty: list[str]
 
     if result.status in ("error", "refused"):
         raise TaskCliError(
-            f"Residual coordination artifact commit failed for {mission_slug} "
-            f"({result.destination_surface}): {result.diagnostic or 'unknown error'}"
+            f"Residual coordination artifact commit failed for {mission_slug} ({result.destination_surface}): {result.diagnostic or 'unknown error'}"
         )
     return bool(result.status == "committed")
 
@@ -443,7 +439,9 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str, *,
     independently (never a single cross-worktree commit, which git cannot do).
     """
     coord_dirty = _coord_dirty_paths(
-        repo_root, mission_slug, **effective_root_kwargs(effective_root),
+        repo_root,
+        mission_slug,
+        **effective_root_kwargs(effective_root),
     )
     primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
     if not coord_dirty and not primary_dirty:
@@ -498,10 +496,7 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
 
 def _print_acceptance_result(result: AcceptanceResult) -> None:
     console.print(
-        "\n[bold]Acceptance metadata[/bold]\n"
-        f"• Mission: {result.summary.feature}\n"
-        f"• Accepted at: {result.accepted_at}\n"
-        f"• Accepted by: {result.accepted_by}"
+        f"\n[bold]Acceptance metadata[/bold]\n• Mission: {result.summary.feature}\n• Accepted at: {result.accepted_at}\n• Accepted by: {result.accepted_by}"
     )
     if result.accept_commit:
         console.print(f"• Acceptance commit: {result.accept_commit}")
@@ -592,9 +587,7 @@ def _report_encoding_repair(repo_root: Path, repaired: list[Path]) -> None:
     artifact names rather than absolute temp paths.
     """
     if not repaired:
-        console.print(
-            "[yellow]--normalize-encoding enabled but no artifacts required updates.[/yellow]"
-        )
+        console.print("[yellow]--normalize-encoding enabled but no artifacts required updates.[/yellow]")
         return
     console.print("[yellow]Normalized acceptance-artifact encoding for:[/yellow]")
     for path in repaired:
@@ -656,7 +649,12 @@ def _collect_summary_with_optional_repair(
 
 
 def _owned_accept_context(
-    primary: Path, checkout: Path | None, mission: str | None, *, diagnose: bool, normalize_encoding: bool,
+    primary: Path,
+    checkout: Path | None,
+    mission: str | None,
+    *,
+    diagnose: bool,
+    normalize_encoding: bool,
 ) -> OwnedMission | None:
     """Validate opt-in ownership and mode before any acceptance reads or writes."""
     if checkout is None:
@@ -692,9 +690,7 @@ def accept(
         "--normalize-encoding/--no-normalize-encoding",
         help="Repair acceptance-artifact encoding (Windows-1252/Latin-1 -> UTF-8) before validating.",
     ),
-    owned_checkout: Annotated[
-        Path | None, typer.Option("--owned-checkout", help="Explicit owned checkout for a single-branch mission.")
-    ] = None,
+    owned_checkout: Annotated[Path | None, typer.Option("--owned-checkout", help="Explicit owned checkout for a single-branch mission.")] = None,
 ) -> None:
     """Validate mission readiness before merging to main."""
 
@@ -704,7 +700,11 @@ def accept(
     try:
         repo_root = find_repo_root()
         owned = _owned_accept_context(
-            repo_root, owned_checkout, mission, diagnose=diagnose, normalize_encoding=normalize_encoding,
+            repo_root,
+            owned_checkout,
+            mission,
+            diagnose=diagnose,
+            normalize_encoding=normalize_encoding,
         )
         if owned is not None:
             repo_root = owned.root

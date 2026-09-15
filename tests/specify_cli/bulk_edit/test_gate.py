@@ -79,14 +79,35 @@ class TestGatePassesNonBulkEdit:
     """Gate should pass for missions that are not bulk_edit."""
 
     def test_no_change_mode_in_meta(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, {"slug": "my-feature", "mission_slug": "my-feature", "friendly_name": "Test", "mission_type": "software-dev", "target_branch": "main", "created_at": "2026-01-01"})
+        _write_meta(
+            tmp_path,
+            {
+                "slug": "my-feature",
+                "mission_slug": "my-feature",
+                "friendly_name": "Test",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01",
+            },
+        )
         result = ensure_occurrence_classification_ready(tmp_path)
         assert result.passed is True
         assert result.change_mode is None
         assert result.errors == []
 
     def test_different_change_mode(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, {"slug": "my-feature", "mission_slug": "my-feature", "friendly_name": "Test", "mission_type": "software-dev", "target_branch": "main", "created_at": "2026-01-01", "change_mode": "standard"})
+        _write_meta(
+            tmp_path,
+            {
+                "slug": "my-feature",
+                "mission_slug": "my-feature",
+                "friendly_name": "Test",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01",
+                "change_mode": "standard",
+            },
+        )
         result = ensure_occurrence_classification_ready(tmp_path)
         assert result.passed is True
         assert result.change_mode == "standard"
@@ -106,7 +127,18 @@ class TestGateBlocksBulkEditNoMap:
     """Gate should block when change_mode=bulk_edit but no occurrence_map.yaml exists."""
 
     def test_blocks_with_error(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, {"slug": "my-feature", "mission_slug": "my-feature", "friendly_name": "Test", "mission_type": "software-dev", "target_branch": "main", "created_at": "2026-01-01", "change_mode": "bulk_edit"})
+        _write_meta(
+            tmp_path,
+            {
+                "slug": "my-feature",
+                "mission_slug": "my-feature",
+                "friendly_name": "Test",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01",
+                "change_mode": "bulk_edit",
+            },
+        )
         result = ensure_occurrence_classification_ready(tmp_path)
         assert result.passed is False
         assert result.change_mode == "bulk_edit"
@@ -119,7 +151,18 @@ class TestGateBlocksBulkEditInvalidMap:
     """Gate should block when occurrence_map.yaml has structural validation errors."""
 
     def test_blocks_missing_target(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, {"slug": "my-feature", "mission_slug": "my-feature", "friendly_name": "Test", "mission_type": "software-dev", "target_branch": "main", "created_at": "2026-01-01", "change_mode": "bulk_edit"})
+        _write_meta(
+            tmp_path,
+            {
+                "slug": "my-feature",
+                "mission_slug": "my-feature",
+                "friendly_name": "Test",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01",
+                "change_mode": "bulk_edit",
+            },
+        )
         _write_occurrence_map(tmp_path, INVALID_OCCURRENCE_MAP_MISSING_TARGET)
         result = ensure_occurrence_classification_ready(tmp_path)
         assert result.passed is False
@@ -131,7 +174,18 @@ class TestGateBlocksBulkEditInadmissible:
     """Gate should block when occurrence_map is structurally valid but has <3 categories."""
 
     def test_blocks_too_few_categories(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, {"slug": "my-feature", "mission_slug": "my-feature", "friendly_name": "Test", "mission_type": "software-dev", "target_branch": "main", "created_at": "2026-01-01", "change_mode": "bulk_edit"})
+        _write_meta(
+            tmp_path,
+            {
+                "slug": "my-feature",
+                "mission_slug": "my-feature",
+                "friendly_name": "Test",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01",
+                "change_mode": "bulk_edit",
+            },
+        )
         _write_occurrence_map(tmp_path, INADMISSIBLE_OCCURRENCE_MAP_FEW_CATEGORIES)
         result = ensure_occurrence_classification_ready(tmp_path)
         assert result.passed is False
@@ -143,7 +197,18 @@ class TestGatePassesBulkEditValidMap:
     """Gate should pass when change_mode=bulk_edit and a valid, admissible map exists."""
 
     def test_passes_valid_map(self, tmp_path: Path) -> None:
-        _write_meta(tmp_path, {"slug": "my-feature", "mission_slug": "my-feature", "friendly_name": "Test", "mission_type": "software-dev", "target_branch": "main", "created_at": "2026-01-01", "change_mode": "bulk_edit"})
+        _write_meta(
+            tmp_path,
+            {
+                "slug": "my-feature",
+                "mission_slug": "my-feature",
+                "friendly_name": "Test",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-01-01",
+                "change_mode": "bulk_edit",
+            },
+        )
         _write_occurrence_map(tmp_path, VALID_OCCURRENCE_MAP)
         result = ensure_occurrence_classification_ready(tmp_path)
         assert result.passed is True

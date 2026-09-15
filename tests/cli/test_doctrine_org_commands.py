@@ -66,10 +66,7 @@ def test_doctrine_org_init_scaffolds_minimal_pack(tmp_path: Path) -> None:
     assert "# expect: valid" in frag_text, "fragment.yaml missing expect: valid frontmatter"
 
     # strip frontmatter comment lines before parsing
-    payload_lines = [
-        line for line in frag_text.splitlines()
-        if not line.strip().startswith("#")
-    ]
+    payload_lines = [line for line in frag_text.splitlines() if not line.strip().startswith("#")]
     payload_text = "\n".join(payload_lines)
     frag_data = YAML(typ="safe").load(payload_text)
     assert frag_data is not None

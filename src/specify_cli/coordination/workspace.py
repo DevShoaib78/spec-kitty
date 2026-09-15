@@ -85,15 +85,16 @@ class CoordinationWorkspaceBranchMismatch(Exception):
     error_code: str = "COORDINATION_WORKTREE_BRANCH_MISMATCH"
 
     def __init__(
-        self, *, worktree_path: Path, expected_ref: str, actual_ref: str,
+        self,
+        *,
+        worktree_path: Path,
+        expected_ref: str,
+        actual_ref: str,
     ) -> None:
         self.worktree_path = worktree_path
         self.expected_ref = expected_ref
         self.actual_ref = actual_ref
-        super().__init__(
-            f"Coordination worktree at {worktree_path} is on {actual_ref!r}, "
-            f"expected {expected_ref!r}. Manual intervention required."
-        )
+        super().__init__(f"Coordination worktree at {worktree_path} is on {actual_ref!r}, expected {expected_ref!r}. Manual intervention required.")
 
 
 class CoordinationWorkspaceIdentityUnresolved(StructuredError):
@@ -230,7 +231,10 @@ class CoordinationWorkspace:
 
     @classmethod
     def resolve(
-        cls, repo_root: Path, mission_slug: str, mid8: str,
+        cls,
+        repo_root: Path,
+        mission_slug: str,
+        mid8: str,
     ) -> Path:
         """Return the coordination worktree path, creating it on first call.
 
@@ -256,13 +260,11 @@ class CoordinationWorkspace:
                 ).strip()
                 # Canonical comparison: normalize via removeprefix.
                 # Belt-and-suspenders fallback retained for transitional safety.
-                if (
-                    _normalize_ref(actual) != branch
-                    and actual != f"refs/heads/{branch}"
-                    and actual != branch
-                ):
+                if _normalize_ref(actual) != branch and actual != f"refs/heads/{branch}" and actual != branch:
                     raise CoordinationWorkspaceBranchMismatch(
-                        worktree_path=path, expected_ref=branch, actual_ref=actual,
+                        worktree_path=path,
+                        expected_ref=branch,
+                        actual_ref=actual,
                     )
                 return path
 
@@ -282,7 +284,10 @@ class CoordinationWorkspace:
 
     @classmethod
     def teardown(
-        cls, repo_root: Path, mission_slug: str, mid8: str,
+        cls,
+        repo_root: Path,
+        mission_slug: str,
+        mid8: str,
     ) -> None:
         """Remove the coordination worktree. Idempotent.
 
@@ -296,14 +301,16 @@ class CoordinationWorkspace:
                 _remove_worktree_registration(repo_root, path)
             return
         subprocess.run(
-            ["git", "-C", str(repo_root), _GIT_WORKTREE, "remove",
-             str(path), "--force"],
+            ["git", "-C", str(repo_root), _GIT_WORKTREE, "remove", str(path), "--force"],
             check=False,  # tolerate "already removed" races
         )
 
     @classmethod
     def is_present(
-        cls, repo_root: Path, mission_slug: str, mid8: str,
+        cls,
+        repo_root: Path,
+        mission_slug: str,
+        mid8: str,
     ) -> bool:
         """Return whether the coordination worktree exists on disk."""
         return cls.worktree_path(repo_root, mission_slug, mid8).exists()
@@ -315,7 +322,8 @@ class CoordinationWorkspace:
 
 
 def lane_sparse_checkout_patterns(
-    mission_slug: str, mid8: str,
+    mission_slug: str,
+    mid8: str,
 ) -> list[str]:
     """Return the lane sparse-checkout patterns (one per line).
 
@@ -346,7 +354,9 @@ def lane_sparse_checkout_patterns(
 
 
 def register_lane_sparse_checkout(
-    lane_path: Path, mission_slug: str, mid8: str,
+    lane_path: Path,
+    mission_slug: str,
+    mid8: str,
 ) -> None:
     """Configure a freshly-created lane worktree's sparse-checkout policy.
 
@@ -379,8 +389,7 @@ def register_lane_sparse_checkout(
     # that may be absolute or relative to the current git dir; resolve
     # it against the lane path to be safe.
     raw = subprocess.check_output(
-        ["git", "-C", str(lane_path), "rev-parse", "--git-path",
-         "info/sparse-checkout"],
+        ["git", "-C", str(lane_path), "rev-parse", "--git-path", "info/sparse-checkout"],
         text=True,
     ).strip()
     sparse_file = Path(raw)

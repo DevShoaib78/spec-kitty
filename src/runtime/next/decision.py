@@ -134,13 +134,9 @@ class Decision:
         if self.kind == DecisionKind.step:
             prompt = self.prompt_file
             if not prompt:
-                raise InvalidStepDecision(
-                    "kind='step' requires a non-empty prompt_file; got None/empty"
-                )
+                raise InvalidStepDecision("kind='step' requires a non-empty prompt_file; got None/empty")
             if not Path(prompt).is_file():
-                raise InvalidStepDecision(
-                    f"kind='step' prompt_file must resolve on disk: {prompt!r} does not"
-                )
+                raise InvalidStepDecision(f"kind='step' prompt_file must resolve on disk: {prompt!r} does not")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -333,9 +329,7 @@ def decide_next(
 
     if effective_root is None:
         return decide_next_via_runtime(agent, mission_slug, result, repo_root)
-    return decide_next_via_runtime(
-        agent, mission_slug, result, repo_root, effective_root=effective_root
-    )
+    return decide_next_via_runtime(agent, mission_slug, result, repo_root, effective_root=effective_root)
 
 
 # ---------------------------------------------------------------------------
@@ -469,8 +463,6 @@ def _build_prompt_safe(
     return path
 
 
-
-
 def _build_prompt_or_error(
     action: str,
     feature_dir: Path,
@@ -506,18 +498,12 @@ def _build_prompt_or_error(
             resolve_mission_type_context,
         )
 
-        action_sequence = resolve_mission_type_context(
-            repo_root, mission_type=mission_type
-        ).action_sequence
+        action_sequence = resolve_mission_type_context(repo_root, mission_type=mission_type).action_sequence
         _is_composed_action = wp_id is None and action in action_sequence
     except Exception:
         pass
     if _is_composed_action:
-        composed_prompt = (
-            f"# {mission_type} — {action}\n\n"
-            f"This step is dispatched via composition.\n"
-            f"Run `spec-kitty next --agent <name>` to advance.\n"
-        )
+        composed_prompt = f"# {mission_type} — {action}\n\nThis step is dispatched via composition.\nRun `spec-kitty next --agent <name>` to advance.\n"
         marker_fd, marker_path = tempfile.mkstemp(
             prefix=f"spec-kitty-composed-{action}-",
             suffix=".md",
@@ -543,14 +529,9 @@ def _build_prompt_or_error(
         path_str = str(prompt_path)
         try:
             if not Path(path_str).exists():
-                return None, (
-                    f"prompt template did not materialize on disk for action "
-                    f"'{action}' (path={path_str})"
-                )
+                return None, (f"prompt template did not materialize on disk for action '{action}' (path={path_str})")
         except OSError as exc:
-            return None, (
-                f"prompt template path is not stat-able for action '{action}': {exc}"
-            )
+            return None, (f"prompt template path is not stat-able for action '{action}': {exc}")
         return path_str, None
     except FileNotFoundError:
         # No file-based template for this non-WP step (e.g. workflow-inserted
@@ -560,11 +541,7 @@ def _build_prompt_or_error(
         # ``kind=blocked`` decision, write a minimal composition marker so the
         # ``kind=step`` invariant is satisfied (FR-007 / T019).
         if wp_id is None:
-            composed_prompt = (
-                f"# {mission_type} — {action}\n\n"
-                f"This step is dispatched via composition.\n"
-                f"Run `spec-kitty next --agent <name>` to advance.\n"
-            )
+            composed_prompt = f"# {mission_type} — {action}\n\nThis step is dispatched via composition.\nRun `spec-kitty next --agent <name>` to advance.\n"
             marker_fd, marker_path = tempfile.mkstemp(
                 prefix=f"spec-kitty-composed-{action}-",
                 suffix=".md",
@@ -573,12 +550,6 @@ def _build_prompt_or_error(
             os.write(marker_fd, composed_prompt.encode("utf-8"))
             os.close(marker_fd)
             return marker_path, None
-        return None, (
-            f"prompt resolution failed for action '{action}': "
-            f"FileNotFoundError: no template found"
-        )
+        return None, (f"prompt resolution failed for action '{action}': FileNotFoundError: no template found")
     except Exception as exc:
-        return None, (
-            f"prompt resolution failed for action '{action}': "
-            f"{type(exc).__name__}: {exc}"
-        )
+        return None, (f"prompt resolution failed for action '{action}': {type(exc).__name__}: {exc}")

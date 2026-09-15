@@ -5,6 +5,7 @@ Synthesis-pipeline helpers live in
 to its original layout so the FR-001 strict-JSON envelope contract is
 trivially diffable against the legacy ``charter.py``.
 """
+
 from __future__ import annotations
 
 import json
@@ -20,6 +21,7 @@ from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
+
 # Helpers that tests never patch (``_has_generated_artifacts``,
 # ``_materialize_fresh_doctrine``, ``_planned_fresh_doctrine_paths``, and the
 # WP03 reconciliation-reporting helpers below) can be imported directly. The
@@ -82,10 +84,7 @@ def charter_synthesize(  # noqa: C901
     adapter: str = typer.Option(
         "generated",
         "--adapter",
-        help=(
-            "Adapter to use. 'generated' (default) validates agent-authored YAML under "
-            ".kittify/charter/generated/. 'fixture' is offline/testing only."
-        ),
+        help=("Adapter to use. 'generated' (default) validates agent-authored YAML under .kittify/charter/generated/. 'fixture' is offline/testing only."),
     ),
     dry_run: bool = typer.Option(
         False,
@@ -220,12 +219,7 @@ def charter_synthesize(  # noqa: C901
         # we fall through to the existing pipeline so callers that mock
         # charter.activation.synthesizer.synthesize keep their established behaviour.
         charter_yaml = repo_root / CHARTER_YAML
-        is_fresh_project_synthesize = (
-            adapter == "generated"
-            and not _has_generated_artifacts(repo_root)
-            and not dry_run_evidence
-            and charter_yaml.is_file()
-        )
+        is_fresh_project_synthesize = adapter == "generated" and not _has_generated_artifacts(repo_root) and not dry_run_evidence and charter_yaml.is_file()
 
         if is_fresh_project_synthesize:
             from specify_cli.cli.commands.charter._fresh_doctrine import _synthesize_project_doctrine
@@ -250,6 +244,7 @@ def charter_synthesize(  # noqa: C901
             # ``warnings`` is intentionally empty: evidence collection has
             # not been triggered on this branch.
             from importlib.metadata import version as _pkg_version
+
             try:
                 _seed_version = _pkg_version("spec-kitty-cli")
             except Exception:
@@ -268,29 +263,28 @@ def charter_synthesize(  # noqa: C901
                     for p in planned
                 ]
                 if json_output:
-                    print(json.dumps({
-                        # FR-002 contracted fields:
-                        "result": "dry_run",
-                        "adapter": {"id": "fresh-seed", "version": _seed_version},
-                        "written_artifacts": fresh_written_artifacts,
-                        "warnings": [],
-                        # Compatibility / fresh-seed identification fields:
-                        "success": True,
-                        "mode": "fresh_project_seed_dry_run",
-                        "files_planned": planned,
-                        "planned_deletes": planned_deletes,
-                        "note": (
-                            "Fresh project + --dry-run: would materialize "
-                            "minimal .kittify/doctrine/ (no files written). "
-                            "See issue #839."
-                        ),
-                    }, indent=2, sort_keys=True))
+                    print(
+                        json.dumps(
+                            {
+                                # FR-002 contracted fields:
+                                "result": "dry_run",
+                                "adapter": {"id": "fresh-seed", "version": _seed_version},
+                                "written_artifacts": fresh_written_artifacts,
+                                "warnings": [],
+                                # Compatibility / fresh-seed identification fields:
+                                "success": True,
+                                "mode": "fresh_project_seed_dry_run",
+                                "files_planned": planned,
+                                "planned_deletes": planned_deletes,
+                                "note": ("Fresh project + --dry-run: would materialize minimal .kittify/doctrine/ (no files written). See issue #839."),
+                            },
+                            indent=2,
+                            sort_keys=True,
+                        )
+                    )
                     mark_invocation_succeeded()
                     return
-                console.print(
-                    "[yellow]Charter synthesis (fresh project, dry-run)[/yellow]: "
-                    "would materialize minimal .kittify/doctrine/ (no files written)."
-                )
+                console.print("[yellow]Charter synthesis (fresh project, dry-run)[/yellow]: would materialize minimal .kittify/doctrine/ (no files written).")
                 for f in planned:
                     console.print(f"  • {f}")
                 for f in planned_deletes:
@@ -309,30 +303,33 @@ def charter_synthesize(  # noqa: C901
             ]
 
             if json_output:
-                print(json.dumps({
-                    # FR-002 contracted fields:
-                    "result": "success",
-                    "adapter": {"id": "fresh-seed", "version": _seed_version},
-                    "written_artifacts": fresh_written_artifacts,
-                    "warnings": [],
-                    # Compatibility / fresh-seed identification fields:
-                    "success": True,
-                    "mode": "fresh_project_seed",
-                    "files_written": written,
-                    "note": (
-                        "Fresh project: no agent-authored YAML under "
-                        ".kittify/charter/generated/. Materialized minimal "
-                        ".kittify/doctrine/ so the runtime can advance "
-                        "(see issue #839)."
-                    ),
-                }, indent=2, sort_keys=True))
+                print(
+                    json.dumps(
+                        {
+                            # FR-002 contracted fields:
+                            "result": "success",
+                            "adapter": {"id": "fresh-seed", "version": _seed_version},
+                            "written_artifacts": fresh_written_artifacts,
+                            "warnings": [],
+                            # Compatibility / fresh-seed identification fields:
+                            "success": True,
+                            "mode": "fresh_project_seed",
+                            "files_written": written,
+                            "note": (
+                                "Fresh project: no agent-authored YAML under "
+                                ".kittify/charter/generated/. Materialized minimal "
+                                ".kittify/doctrine/ so the runtime can advance "
+                                "(see issue #839)."
+                            ),
+                        },
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
                 mark_invocation_succeeded()
                 return
 
-            console.print(
-                "[green]Charter synthesis (fresh project)[/green]: minimal "
-                ".kittify/doctrine/ materialized."
-            )
+            console.print("[green]Charter synthesis (fresh project)[/green]: minimal .kittify/doctrine/ materialized.")
             for f in written:
                 console.print(f"  ✓ {f}")
             _print_synthesis_commit_reminder()
@@ -359,37 +356,41 @@ def charter_synthesize(  # noqa: C901
                 # FR-001 / FR-002: evidence dry-run also emits the strict
                 # envelope. ``written_artifacts`` is empty because no
                 # synthesis ran; warnings live in the ``warnings`` array.
-                print(json.dumps({
-                    # Contracted fields (FR-002):
-                    "result": "success",
-                    "adapter": {"id": adapter, "version": "evidence-dry-run"},
-                    "written_artifacts": [],
-                    "warnings": warnings_collected,
-                    # Compatibility / mode-identification fields:
-                    "mode": "evidence_dry_run",
-                    "evidence": {
-                        "code_signals": (
-                            {
-                                "stack_id": bundle.code_signals.stack_id,
-                                "primary_language": bundle.code_signals.primary_language,
-                                "representative_files_count": len(
-                                    bundle.code_signals.representative_files
+                print(
+                    json.dumps(
+                        {
+                            # Contracted fields (FR-002):
+                            "result": "success",
+                            "adapter": {"id": adapter, "version": "evidence-dry-run"},
+                            "written_artifacts": [],
+                            "warnings": warnings_collected,
+                            # Compatibility / mode-identification fields:
+                            "mode": "evidence_dry_run",
+                            "evidence": {
+                                "code_signals": (
+                                    {
+                                        "stack_id": bundle.code_signals.stack_id,
+                                        "primary_language": bundle.code_signals.primary_language,
+                                        "representative_files_count": len(bundle.code_signals.representative_files),
+                                    }
+                                    if bundle.code_signals
+                                    else None
                                 ),
-                            }
-                            if bundle.code_signals
-                            else None
-                        ),
-                        "url_list_count": len(bundle.url_list),
-                        "corpus": (
-                            {
-                                "snapshot_id": bundle.corpus_snapshot.snapshot_id,
-                                "entries_count": len(bundle.corpus_snapshot.entries),
-                            }
-                            if bundle.corpus_snapshot
-                            else None
-                        ),
-                    },
-                }, indent=2, sort_keys=True))
+                                "url_list_count": len(bundle.url_list),
+                                "corpus": (
+                                    {
+                                        "snapshot_id": bundle.corpus_snapshot.snapshot_id,
+                                        "entries_count": len(bundle.corpus_snapshot.entries),
+                                    }
+                                    if bundle.corpus_snapshot
+                                    else None
+                                ),
+                            },
+                        },
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
                 mark_invocation_succeeded()
                 raise typer.Exit(0)
 
@@ -402,10 +403,7 @@ def charter_synthesize(  # noqa: C901
                 console.print("  Code signals: none (skipped or not detected)")
             console.print(f"  URL list: {len(bundle.url_list)} URL(s) configured")
             if bundle.corpus_snapshot:
-                console.print(
-                    f"  Corpus: {bundle.corpus_snapshot.snapshot_id} "
-                    f"({len(bundle.corpus_snapshot.entries)} entries)"
-                )
+                console.print(f"  Corpus: {bundle.corpus_snapshot.snapshot_id} ({len(bundle.corpus_snapshot.entries)} entries)")
             else:
                 console.print("  Corpus: none")
             for w in warnings_collected:
@@ -425,9 +423,7 @@ def charter_synthesize(  # noqa: C901
             # free) added to the same envelope by _emit_dry_run_report. An
             # unparseable on-disk overlay raises DRGLoadError here, caught
             # below (FR-007 fail-closed, no write in either branch).
-            staged_files, written_artifacts_dr = _charter_pkg._run_synthesis_dry_run_with_artifacts(
-                request, syn_adapter, repo_root
-            )
+            staged_files, written_artifacts_dr = _charter_pkg._run_synthesis_dry_run_with_artifacts(request, syn_adapter, repo_root)
             delta = _reconciliation_preview(request, repo_root)
             _emit_dry_run_report(
                 json_output=json_output,
@@ -517,12 +513,18 @@ def charter_synthesize(  # noqa: C901
             ".kittify/doctrine/ and re-run `spec-kitty charter synthesize`."
         )
         if json_output:
-            print(json.dumps({
-                "result": "failure",
-                "adapter": {"id": adapter, "version": "unknown"},
-                "written_artifacts": [],
-                "warnings": warnings_collected + [detail],
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "result": "failure",
+                        "adapter": {"id": adapter, "version": "unknown"},
+                        "written_artifacts": [],
+                        "warnings": warnings_collected + [detail],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         else:
             err_console.print(f"[red]Error:[/red] {detail}")
         raise typer.Exit(code=1) from e
@@ -531,20 +533,25 @@ def charter_synthesize(  # noqa: C901
         # stderr in --json mode. The error panel never reaches stdout.
         render_error_panel(e, err_console)
         err_console.print(
-            f"\n[yellow]Staging directory preserved at:[/yellow] {e.staging_dir}\n"
-            "Inspect the staged artifacts, adjust the synthesis prompt or scope, and retry."
+            f"\n[yellow]Staging directory preserved at:[/yellow] {e.staging_dir}\nInspect the staged artifacts, adjust the synthesis prompt or scope, and retry."
         )
         if json_output:
             # FR-001: even in failure mode, stdout MUST contain exactly one
             # JSON document. The error message is appended to whatever
             # warnings were already collected so callers reading only
             # stdout still see both.
-            print(json.dumps({
-                "result": "failure",
-                "adapter": {"id": adapter, "version": "unknown"},
-                "written_artifacts": [],
-                "warnings": warnings_collected + [f"NeutralityGateViolation: {e}"],
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "result": "failure",
+                        "adapter": {"id": adapter, "version": "unknown"},
+                        "written_artifacts": [],
+                        "warnings": warnings_collected + [f"NeutralityGateViolation: {e}"],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         raise typer.Exit(code=1) from e
     except SynthesisError as e:
         from charter.activation.synthesizer.errors import GeneratedArtifactMissingError as _GAME
@@ -559,23 +566,35 @@ def charter_synthesize(  # noqa: C901
                 "to produce the artifacts that synthesis needs."
             )
             if json_output:
-                print(json.dumps({
-                    "result": "failure",
-                    "adapter": {"id": adapter, "version": "unknown"},
-                    "written_artifacts": [],
-                    "warnings": warnings_collected + [_charter_hint],
-                }, indent=2, sort_keys=True))
+                print(
+                    json.dumps(
+                        {
+                            "result": "failure",
+                            "adapter": {"id": adapter, "version": "unknown"},
+                            "written_artifacts": [],
+                            "warnings": warnings_collected + [_charter_hint],
+                        },
+                        indent=2,
+                        sort_keys=True,
+                    )
+                )
             else:
                 console.print(f"[red]Error:[/red] {_charter_hint}")
             raise typer.Exit(code=1) from e
 
         if json_output:
-            print(json.dumps({
-                "result": "failure",
-                "adapter": {"id": adapter, "version": "unknown"},
-                "written_artifacts": [],
-                "warnings": warnings_collected + [f"SynthesisError: {e}"],
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "result": "failure",
+                        "adapter": {"id": adapter, "version": "unknown"},
+                        "written_artifacts": [],
+                        "warnings": warnings_collected + [f"SynthesisError: {e}"],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         raise typer.Exit(code=1) from e
     except (TaskCliError, ConfigShapeError) as e:
         # ConfigShapeError (a corrupt/non-mapping .kittify/config.yaml, ledger
@@ -583,12 +602,18 @@ def charter_synthesize(  # noqa: C901
         # TaskCliError, not routed through the generic "Unexpected error"
         # branch below.
         if json_output:
-            print(json.dumps({
-                "result": "failure",
-                "adapter": {"id": adapter, "version": "unknown"},
-                "written_artifacts": [],
-                "warnings": warnings_collected + [str(e)],
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "result": "failure",
+                        "adapter": {"id": adapter, "version": "unknown"},
+                        "written_artifacts": [],
+                        "warnings": warnings_collected + [str(e)],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1) from e
@@ -599,23 +624,35 @@ def charter_synthesize(  # noqa: C901
         # (#2850 follow-up — the CHARTER_PACK_CONFIG_INVALID body was invisible).
         detail = f"{e.code}: {e.body}" if e.body else e.code
         if json_output:
-            print(json.dumps({
-                "result": "failure",
-                "adapter": {"id": adapter, "version": "unknown"},
-                "written_artifacts": [],
-                "warnings": warnings_collected + [detail],
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "result": "failure",
+                        "adapter": {"id": adapter, "version": "unknown"},
+                        "written_artifacts": [],
+                        "warnings": warnings_collected + [detail],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         else:
             console.print(f"[red]Error:[/red] {detail}")
         raise typer.Exit(code=1) from e
     except Exception as e:
         if json_output:
-            print(json.dumps({
-                "result": "failure",
-                "adapter": {"id": adapter, "version": "unknown"},
-                "written_artifacts": [],
-                "warnings": warnings_collected + [f"Unexpected error: {e}"],
-            }, indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    {
+                        "result": "failure",
+                        "adapter": {"id": adapter, "version": "unknown"},
+                        "written_artifacts": [],
+                        "warnings": warnings_collected + [f"Unexpected error: {e}"],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         else:
             console.print(f"[red]Unexpected error:[/red] {e}")
         raise typer.Exit(code=1) from e

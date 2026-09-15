@@ -97,8 +97,7 @@ def _resolve_repo_root_and_slug(mission_handle: str) -> tuple[Path, str]:
     # guards the RAW operator token only — the resolver's output is trusted.
     if not _SAFE_SLUG_RE.match(mission_handle):
         raise typer.BadParameter(
-            f"Invalid --mission value {mission_handle!r}: must match "
-            f"{_SAFE_SLUG_RE.pattern}",
+            f"Invalid --mission value {mission_handle!r}: must match {_SAFE_SLUG_RE.pattern}",
             param_hint="'--mission'",
         )
 
@@ -485,9 +484,7 @@ def cmd_verify(
     try:
         mission_dir = resolve_handle_to_read_path(repo_root, mission_slug)
     except (StatusReadPathNotFound, MissionSelectorAmbiguous) as exc:
-        _handle_action_context_error(
-            ActionContextError(exc.error_code, str(exc))
-        )
+        _handle_action_context_error(ActionContextError(exc.error_code, str(exc)))
         return  # unreachable — _handle_action_context_error raises
 
     result = _verify_decisions(mission_dir, mission_slug)
@@ -543,8 +540,7 @@ def cmd_widen(
     # constructed request line, because nothing downstream of here runs.
     if not is_well_formed_decision_id(decision_id):
         typer.echo(
-            "Error: decision_id must be a 26-character Crockford-base32 ULID "
-            "(digits and A-Z excluding I, L, O, U)",
+            "Error: decision_id must be a 26-character Crockford-base32 ULID (digits and A-Z excluding I, L, O, U)",
             err=True,
         )
         raise typer.Exit(1)
@@ -573,25 +569,27 @@ def cmd_widen(
         # formatted for copy-paste into a real invocation without ever seeing the
         # mismatch. It rides in the payload rather than on stderr because this
         # command's dry-run contract is "stdout is one JSON document".
-        typer.echo(json.dumps(
-            {
-                "dry_run": True,
-                "decision_id": decision_id,
-                "endpoint": f"POST /a/<team_slug>/collaboration/decision-points/{decision_id}/widen",
-                "invited": invited_list,
-                "mission_slug": mission_slug,
-                "ownership": {
-                    "acting_root": str(ownership.repo_root),
-                    "missions_searched": list(ownership.missions_searched),
-                    "owned": ownership.owned,
-                    "owning_mission_slug": ownership.owning_mission_slug,
-                    "unreadable_ledgers": list(ownership.unreadable_ledgers),
-                    "warning": refusal,
+        typer.echo(
+            json.dumps(
+                {
+                    "dry_run": True,
+                    "decision_id": decision_id,
+                    "endpoint": f"POST /a/<team_slug>/collaboration/decision-points/{decision_id}/widen",
+                    "invited": invited_list,
+                    "mission_slug": mission_slug,
+                    "ownership": {
+                        "acting_root": str(ownership.repo_root),
+                        "missions_searched": list(ownership.missions_searched),
+                        "owned": ownership.owned,
+                        "owning_mission_slug": ownership.owning_mission_slug,
+                        "unreadable_ledgers": list(ownership.unreadable_ledgers),
+                        "warning": refusal,
+                    },
+                    "payload": {"invited_user_ids": invited_list},
                 },
-                "payload": {"invited_user_ids": invited_list},
-            },
-            indent=2,
-        ))
+                indent=2,
+            )
+        )
         raise typer.Exit(0)
 
     # No fall-through. "Found nothing" is *ownership not established*, and falling
@@ -605,16 +603,18 @@ def cmd_widen(
     try:
         client = SaasClient.from_env(repo_root=repo_root)
         response = client.post_widen(decision_id=decision_id, invited=invited_list)
-        typer.echo(json.dumps(
-            {
-                "decision_id": response["decision_id"],
-                "invited_count": response["invited_count"],
-                "slack_thread_url": response["slack_thread_url"],
-                "success": True,
-                "widened_at": response["widened_at"],
-            },
-            indent=2,
-        ))
+        typer.echo(
+            json.dumps(
+                {
+                    "decision_id": response["decision_id"],
+                    "invited_count": response["invited_count"],
+                    "slack_thread_url": response["slack_thread_url"],
+                    "success": True,
+                    "widened_at": response["widened_at"],
+                },
+                indent=2,
+            )
+        )
     except SaasClientError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(1) from exc

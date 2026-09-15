@@ -55,10 +55,7 @@ from specify_cli.runtime.migrate import execute_migration
 
 app = typer.Typer(
     name="migrate",
-    help=(
-        "Migration commands: update .kittify/ layout and backfill identity fields "
-        "in legacy missions."
-    ),
+    help=("Migration commands: update .kittify/ layout and backfill identity fields in legacy missions."),
     no_args_is_help=False,
     invoke_without_command=True,
 )
@@ -93,9 +90,7 @@ _CAPTURE_FAILURE_HEADER = "Unrecoverable capture failure(s) recorded during this
 #: across this module. Every ``locate_project_root() is None`` guard (existing
 #: and this WP's new ``backfill-mission-type`` command) now shares this one
 #: constant.
-_NO_PROJECT_ROOT = (
-    "Could not locate project root. No .kittify/ directory found in any parent directory."
-)
+_NO_PROJECT_ROOT = "Could not locate project root. No .kittify/ directory found in any parent directory."
 
 #: WP02 (campsite M2): ``backfill-mission-type`` reuses the hoisted
 #: ``_DRY_RUN_FLAG``/``_MISSION_FLAG``/``_MISSION_METAVAR``/``_JSON_FLAG``
@@ -104,10 +99,7 @@ _NO_PROJECT_ROOT = (
 #: describe writing a ``mission_type`` key, so this is the one new
 #: command-specific help constant the fold allows; ``_MISSION_HELP`` /
 #: ``_JSON_HELP`` are reused as-is.
-_MISSION_TYPE_DRY_RUN_HELP = (
-    "Report what would change without writing any files. "
-    "The JSON shape is identical to a live run."
-)
+_MISSION_TYPE_DRY_RUN_HELP = "Report what would change without writing any files. The JSON shape is identical to a live run."
 _MISSION_TYPE_SUMMARY_TITLE = "backfill-mission-type summary"
 #: ``backfill_mission_type_repo`` scopes ``--mission`` by directory-name slug only
 #: (``kitty-specs/<slug>``), so this command must NOT reuse ``_MISSION_HELP`` /
@@ -117,23 +109,16 @@ _MISSION_TYPE_MISSION_HELP = "Scope to a single mission slug (e.g. 083-foo). Omi
 _MISSION_TYPE_MISSION_METAVAR = "SLUG"
 _MISSION_TYPE_JSON_HELP = "Emit the per-mission backfill result list as structured JSON."
 _MISSION_TYPE_MANUAL_DIAGNOSTIC = (
-    "Fix: assign a mission type whose governance profile resolves at some layer "
-    "(built-in / org / project), or author/activate that type. Not necessarily a typo."
+    "Fix: assign a mission type whose governance profile resolves at some layer (built-in / org / project), or author/activate that type. Not necessarily a typo."
 )
 
 
 @app.callback(invoke_without_command=True)
 def migrate(  # noqa: C901
     ctx: typer.Context,
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Show what would change without modifying the filesystem"
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Show file-by-file detail"
-    ),
-    force: bool = typer.Option(
-        False, "--force", help="Skip confirmation prompt"
-    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would change without modifying the filesystem"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show file-by-file detail"),
+    force: bool = typer.Option(False, "--force", help="Skip confirmation prompt"),
 ) -> None:
     """Migrate project .kittify/ to centralized model.
 
@@ -159,6 +144,7 @@ def migrate(  # noqa: C901
     # without performing any filesystem moves (FR-006, contracts/cli-migrate.md).
     if sys.platform == "win32":
         from specify_cli.paths.windows_migrate import migrate_windows_state  # noqa: PLC0415
+
         try:
             outcomes = migrate_windows_state(dry_run=dry_run)
         except TimeoutError as exc:
@@ -168,10 +154,7 @@ def migrate(  # noqa: C901
 
     project_dir = locate_project_root()
     if project_dir is None:
-        console.print(
-            "[red]Could not locate project root. "
-            "No .kittify/ directory found in any parent directory.[/red]"
-        )
+        console.print("[red]Could not locate project root. No .kittify/ directory found in any parent directory.[/red]")
         raise typer.Exit(1)
 
     if not (project_dir / ".kittify").exists():
@@ -190,9 +173,7 @@ def migrate(  # noqa: C901
     else:
         runtime_root = get_runtime_root()
         runtime_path_display = render_runtime_path(runtime_root.base)
-        console.print(
-            f"[bold]Step 1:[/bold] Ensuring global runtime ({runtime_path_display}/) is up to date..."
-        )
+        console.print(f"[bold]Step 1:[/bold] Ensuring global runtime ({runtime_path_display}/) is up to date...")
         ensure_runtime()
         console.print("  [green]Global runtime is current.[/green]")
 
@@ -208,22 +189,14 @@ def migrate(  # noqa: C901
     action_moved = "would move" if dry_run else "moved"
     action_superseded = "would remove" if dry_run else "removed"
 
-    console.print(
-        f"  {len(report.removed)} files identical to global -- {action_removed}"
-    )
+    console.print(f"  {len(report.removed)} files identical to global -- {action_removed}")
     if report.superseded:
-        console.print(
-            f"  {len(report.superseded)} files superseded (outdated defaults) -- {action_superseded}"
-        )
-    console.print(
-        f"  {len(report.moved)} files customized -- {action_moved} to overrides/"
-    )
+        console.print(f"  {len(report.superseded)} files superseded (outdated defaults) -- {action_superseded}")
+    console.print(f"  {len(report.moved)} files customized -- {action_moved} to overrides/")
     console.print(f"  {len(report.kept)} files project-specific -- kept")
 
     if report.unknown:
-        console.print(
-            f"  [yellow]{len(report.unknown)} files unknown -- kept with warning[/yellow]"
-        )
+        console.print(f"  [yellow]{len(report.unknown)} files unknown -- kept with warning[/yellow]")
 
     if verbose:
         for path in report.removed:
@@ -238,10 +211,7 @@ def migrate(  # noqa: C901
             console.print(f"    [yellow]unknown: {path}[/yellow]")
 
     if not dry_run:
-        console.print(
-            "\n[green]Migration complete.[/green] Zero legacy warnings expected. "
-            "Run `spec-kitty config --show-origin` to verify resolution tiers."
-        )
+        console.print("\n[green]Migration complete.[/green] Zero legacy warnings expected. Run `spec-kitty config --show-origin` to verify resolution tiers.")
 
     # Credential path decision: auth credentials stay in the runtime auth/ subdir.
     # This is a security boundary decision -- credentials have a different
@@ -259,10 +229,7 @@ def backfill_identity(
         bool,
         typer.Option(
             "--dry-run",
-            help=(
-                "Report what would change without writing any files. "
-                "The JSON shape is identical to a live run."
-            ),
+            help=("Report what would change without writing any files. The JSON shape is identical to a live run."),
         ),
     ] = False,
     mission: Annotated[
@@ -357,10 +324,7 @@ def backfill_identity(
         if dry_run:
             console.print("\n[dim]Dry run — no files were modified.[/dim]")
         elif wrote:
-            console.print(
-                f"\n[green]Done.[/green] {len(wrote)} mission(s) received a "
-                f"``mission_id``."
-            )
+            console.print(f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``mission_id``.")
         else:
             console.print("\n[green]Done.[/green] All missions already have a ``mission_id``.")
 
@@ -378,10 +342,7 @@ def backfill_topology(
         bool,
         typer.Option(
             "--dry-run",
-            help=(
-                "Report what would change without writing any files. "
-                "The JSON shape is identical to a live run."
-            ),
+            help=("Report what would change without writing any files. The JSON shape is identical to a live run."),
         ),
     ] = False,
     mission: Annotated[
@@ -463,9 +424,7 @@ def backfill_topology(
         if dry_run:
             console.print("\n[dim]Dry run — no files were modified.[/dim]")
         elif wrote:
-            console.print(
-                f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``topology``."
-            )
+            console.print(f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``topology``.")
         else:
             console.print("\n[green]Done.[/green] All missions already have a ``topology``.")
 
@@ -476,9 +435,7 @@ def backfill_topology(
 @app.command(name="backfill-mission-type")
 def backfill_mission_type_cmd(
     json_output: Annotated[bool, typer.Option(_JSON_FLAG, help=_MISSION_TYPE_JSON_HELP)] = False,
-    dry_run: Annotated[
-        bool, typer.Option(_DRY_RUN_FLAG, help=_MISSION_TYPE_DRY_RUN_HELP)
-    ] = False,
+    dry_run: Annotated[bool, typer.Option(_DRY_RUN_FLAG, help=_MISSION_TYPE_DRY_RUN_HELP)] = False,
     mission: Annotated[
         str | None,
         typer.Option(
@@ -560,10 +517,7 @@ def charter_encoding(
         bool,
         typer.Option(
             "--dry-run",
-            help=(
-                "Show what would change without writing any files.  "
-                "Returns exit 0 unless ambiguous files are found."
-            ),
+            help=("Show what would change without writing any files.  Returns exit 0 unless ambiguous files are found."),
         ),
     ] = False,
     yes: Annotated[
@@ -644,10 +598,7 @@ def backfill_provenance(
         bool,
         typer.Option(
             "--dry-run",
-            help=(
-                "Report what would be stamped without writing any files. "
-                "The JSON shape is identical to a live run."
-            ),
+            help=("Report what would be stamped without writing any files. The JSON shape is identical to a live run."),
         ),
     ] = False,
     json_output: Annotated[
@@ -717,14 +668,8 @@ def backfill_provenance(
                 "errors": len(summary.errors),
                 "invariants_stamped": summary.stamped_total,
             },
-            "migrated": [
-                {"path": str(record.path), "invariants_stamped": record.invariants_stamped}
-                for record in summary.migrated
-            ],
-            "errors": [
-                {"path": str(error.path), "message": error.message}
-                for error in summary.errors
-            ],
+            "migrated": [{"path": str(record.path), "invariants_stamped": record.invariants_stamped} for record in summary.migrated],
+            "errors": [{"path": str(error.path), "message": error.message} for error in summary.errors],
         }
         print(json.dumps(payload, indent=2))
     else:
@@ -744,10 +689,7 @@ def backfill_provenance(
         if dry_run:
             console.print("\n[dim]Dry run — no files were modified.[/dim]")
         elif summary.migrated:
-            console.print(
-                f"\n[green]Done.[/green] {len(summary.migrated)} matrix file(s) "
-                "received the legacy_unrecorded sentinel."
-            )
+            console.print(f"\n[green]Done.[/green] {len(summary.migrated)} matrix file(s) received the legacy_unrecorded sentinel.")
         else:
             console.print("\n[green]Done.[/green] Corpus already carries provenance.")
 
@@ -814,8 +756,7 @@ def rewrite_opposed_by(
         Path,
         typer.Option(
             "--pack",
-            help="Root directory of the target pack to migrate (org pack or any "
-            "directory shaped like the built-in doctrine tree).",
+            help="Root directory of the target pack to migrate (org pack or any directory shaped like the built-in doctrine tree).",
             metavar="PATH",
         ),
     ] = Path("."),
@@ -823,10 +764,7 @@ def rewrite_opposed_by(
         bool,
         typer.Option(
             "--dry-run",
-            help=(
-                "Report planned rewrites without writing any files. "
-                "The JSON shape is identical to a live run."
-            ),
+            help=("Report planned rewrites without writing any files. The JSON shape is identical to a live run."),
         ),
     ] = False,
     json_output: Annotated[
@@ -915,10 +853,7 @@ def rewrite_opposed_by(
         for r in result.rewritten:
             verb = "would rewrite" if dry_run else "rewrote"
             node_note = " (creates anti_pattern node)" if r.created_anti_pattern_node else ""
-            console.print(
-                f"  [green]{verb}[/green] {r.source_type}:{r.source_id} "
-                f"--{r.relation}--> {r.target_type}:{r.target_id}{node_note}"
-            )
+            console.print(f"  [green]{verb}[/green] {r.source_type}:{r.source_id} --{r.relation}--> {r.target_type}:{r.target_id}{node_note}")
 
         if result.unclassifiable:
             console.print("\n[red]Unclassifiable entries (manual review required):[/red]")
@@ -928,10 +863,7 @@ def rewrite_opposed_by(
         if dry_run:
             console.print("\n[dim]Dry run — no files were modified.[/dim]")
         elif result.rewritten:
-            console.print(
-                f"\n[green]Done.[/green] {len(result.rewritten)} opposed_by "
-                "entry(ies) rewritten to DRG edges."
-            )
+            console.print(f"\n[green]Done.[/green] {len(result.rewritten)} opposed_by entry(ies) rewritten to DRG edges.")
         else:
             console.print("\n[green]Done.[/green] No opposed_by entries found.")
 
@@ -984,6 +916,7 @@ def backfill_runtime_state_cmd(
         cutover_mission,
         cutover_repo,
     )
+
     repo_root = locate_project_root()
     if repo_root is None:
         _error(_NO_PROJECT_ROOT)
@@ -1075,9 +1008,7 @@ def rebaseline_dossier_hashes(
         print(json.dumps(payload, indent=2))
     else:
         prefix = "(dry-run) " if dry_run else ""
-        console.print(
-            f"{prefix}Re-baselined {len(changed)} / {len(outcomes)} recorded snapshot(s); {len(errored)} error(s)."
-        )
+        console.print(f"{prefix}Re-baselined {len(changed)} / {len(outcomes)} recorded snapshot(s); {len(errored)} error(s).")
         for o in errored:
             err_console.print(f"[yellow]skip[/yellow] {o.mission_slug}: {o.error}")
 
@@ -1139,9 +1070,7 @@ def repin_hooks(
         console.print("\n[bold]repin-hooks summary[/bold]")
         console.print(f"  Hook        : {result.hook_path}")
         console.print(f"  Interpreter : {result.interpreter}")
-        console.print(
-            "\n[green]Done.[/green] Pre-commit hook re-pinned to the current interpreter."
-        )
+        console.print("\n[green]Done.[/green] Pre-commit hook re-pinned to the current interpreter.")
 
 
 # ---------------------------------------------------------------------------
@@ -1203,9 +1132,7 @@ def _cutover_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
             "flipped": len([r for r in results if r.flipped and not r.already_migrated]),
             "already_migrated": len([r for r in results if r.already_migrated]),
             "would_seed": len([r for r in results if r.seeded_count > 0]),
-            "would_flip": len(
-                [r for r in results if r.would_flip and not r.already_migrated]
-            ),
+            "would_flip": len([r for r in results if r.would_flip and not r.already_migrated]),
             "seeded": sum(r.seeded_count for r in results),
             "failed": len([r for r in results if _cutover_failed(r, dry_run=dry_run)]),
         },
@@ -1219,11 +1146,7 @@ def _cutover_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
                 "seeded_count": r.seeded_count,
                 "verify_ok": None if r.verify is None else r.verify.ok,
                 "failed": _cutover_failed(r, dry_run=dry_run),
-                "mismatches": (
-                    list(r.verify.mismatches)
-                    if (r.verify is not None and _cutover_failed(r, dry_run=dry_run))
-                    else []
-                ),
+                "mismatches": (list(r.verify.mismatches) if (r.verify is not None and _cutover_failed(r, dry_run=dry_run)) else []),
                 "error": r.error,
             }
             for r in results
@@ -1258,11 +1181,7 @@ def _print_cutover_summary(results: list[Any], *, dry_run: bool) -> None:
     if dry_run:
         would_flip = [r for r in active if r.would_flip and not r.already_migrated]
         would_seed = [r for r in active if r.seeded_count > 0]
-        skipped = [
-            r
-            for r in active
-            if not (r.would_flip and not r.already_migrated) and r.seeded_count == 0
-        ]
+        skipped = [r for r in active if not (r.would_flip and not r.already_migrated) and r.seeded_count == 0]
         console.print(f"  {_LABEL_WOULD_FLIP:<27} : {len(would_flip)}")
         console.print(f"  {_LABEL_WOULD_SEED:<27} : {len(would_seed)}")
     else:
@@ -1279,9 +1198,7 @@ def _print_cutover_summary(results: list[Any], *, dry_run: bool) -> None:
             console.print(f"  [red]{r.slug}:[/red] {_cutover_detail(r)}")
 
     if dry_run:
-        console.print(
-            "\n[dim]Dry run — no seeds or flips written; verify runs post-seed on a live run.[/dim]"
-        )
+        console.print("\n[dim]Dry run — no seeds or flips written; verify runs post-seed on a live run.[/dim]")
 
 
 def _normalize_lifecycle_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
@@ -1377,9 +1294,7 @@ def _print_mission_type_summary(results: list[Any], *, dry_run: bool) -> None:
     if dry_run:
         console.print("\n[dim]Dry run — no files were modified.[/dim]")
     elif wrote:
-        console.print(
-            f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``mission_type``."
-        )
+        console.print(f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``mission_type``.")
     else:
         console.print("\n[green]Done.[/green] All missions already have a ``mission_type``.")
 
@@ -1470,11 +1385,7 @@ def _render_windows_migration_summary(
             canonical_dest = render_runtime_path(Path(o.dest_path))
             break
 
-    header = (
-        "\n[DRY-RUN] Would migrate Spec Kitty runtime state on Windows."
-        if dry_run
-        else "\nMigrated Spec Kitty runtime state on Windows."
-    )
+    header = "\n[DRY-RUN] Would migrate Spec Kitty runtime state on Windows." if dry_run else "\nMigrated Spec Kitty runtime state on Windows."
     con.print(header)
     if canonical_dest:
         con.print(f"  Canonical location: {canonical_dest}")

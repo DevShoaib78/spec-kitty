@@ -276,13 +276,9 @@ def test_review_report_frontmatter_structure(tmp_path: Path, monkeypatch: pytest
     assert "verdict" in fm_dict, f"Missing 'verdict' in frontmatter: {fm_dict}"
     assert "reviewed_at" in fm_dict, f"Missing 'reviewed_at' in frontmatter: {fm_dict}"
     assert "findings" in fm_dict, f"Missing 'findings' in frontmatter: {fm_dict}"
-    assert fm_dict["verdict"] in ("pass", "pass_with_notes", "fail"), (
-        f"Invalid verdict: {fm_dict['verdict']}"
-    )
+    assert fm_dict["verdict"] in ("pass", "pass_with_notes", "fail"), f"Invalid verdict: {fm_dict['verdict']}"
     # reviewed_at must look like an ISO timestamp
-    assert "T" in fm_dict["reviewed_at"] and "+" in fm_dict["reviewed_at"], (
-        f"reviewed_at not ISO 8601: {fm_dict['reviewed_at']!r}"
-    )
+    assert "T" in fm_dict["reviewed_at"] and "+" in fm_dict["reviewed_at"], f"reviewed_at not ISO 8601: {fm_dict['reviewed_at']!r}"
     assert fm_dict["findings"].isdigit(), f"findings must be integer, got: {fm_dict['findings']!r}"
 
 
@@ -398,9 +394,7 @@ def test_review_post_merge_invalid_issue_matrix_exits_nonzero(
     assert "issue_matrix_present: true" in report_text
 
 
-def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root, feature_dir = _setup_fixture(
         tmp_path,
         {"WP01": "done"},
@@ -503,6 +497,4 @@ def test_check_env_skew_warn_branch_prints_mismatch_and_continues(
     # The review must have run to completion past the warn-loud preflight,
     # not exited early.
     report_path = feature_dir / "mission-review-report.md"
-    assert report_path.exists(), (
-        "warn-loud env-skew divergence must not stop the review from running"
-    )
+    assert report_path.exists(), "warn-loud env-skew divergence must not stop the review from running"

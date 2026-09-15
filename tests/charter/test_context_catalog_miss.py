@@ -207,9 +207,7 @@ class TestFormatCatalogMissStanza:
         assert "project, org, and built-in" in joined
 
     def test_schema_failure_stanza_cites_doctrine_validate(self) -> None:
-        diagnosis = CatalogMissDiagnosis(
-            cause=CatalogMissCause.SCHEMA_VALIDATION_SUSPECTED
-        )
+        diagnosis = CatalogMissDiagnosis(cause=CatalogMissCause.SCHEMA_VALIDATION_SUSPECTED)
         lines = format_catalog_miss_stanza(
             selector_kind="styleguide",
             artifact_id="caveman-comments",
@@ -250,18 +248,14 @@ class TestEmitCatalogMissWarning:
                 artifact_id="caveman-comemnts",
                 diagnosis=diagnosis,
             )
-        miss_warnings = [
-            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
-        ]
+        miss_warnings = [w for w in captured if issubclass(w.category, CharterCatalogMissWarning)]
         assert len(miss_warnings) == 1
         text = str(miss_warnings[0].message)
         assert "styleguide:caveman-comemnts" in text
         assert "cause=typo_suspected" in text
         assert "suggestion='caveman-comments'" in text
 
-    def test_logger_extra_carries_structured_fields(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_logger_extra_carries_structured_fields(self, caplog: pytest.LogCaptureFixture) -> None:
         diagnosis = CatalogMissDiagnosis(cause=CatalogMissCause.MISSING_ARTIFACT)
         with (
             caplog.at_level(logging.WARNING, logger="charter.activation._catalog_miss"),
@@ -274,9 +268,7 @@ class TestEmitCatalogMissWarning:
                 diagnosis=diagnosis,
                 context="profile:python-pedro",
             )
-        relevant = [
-            r for r in caplog.records if r.name == "charter.activation._catalog_miss"
-        ]
+        relevant = [r for r in caplog.records if r.name == "charter.activation._catalog_miss"]
         assert {
             (r.kind, r.id, r.cause, r.context)  # type: ignore[attr-defined]
             for r in relevant
@@ -309,9 +301,7 @@ class TestRendererIntegration:
     def test_typo_case_renders_suggestion_and_warns(self) -> None:
         # Catalog carries the canonical ID; charter selected a typo.
         sg = _Item("caveman-comments", title="Caveman", principles=["UGG"])
-        service = _StubService(
-            styleguides=_StubRepo(items={"caveman-comments": sg})
-        )
+        service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always")
             lines = _render_selected_styleguides(["caveman-comemnts"], service)
@@ -322,15 +312,10 @@ class TestRendererIntegration:
         assert "Cause: typo_suspected" in joined
         assert "did you mean 'caveman-comments'?" in joined
         # Fetch stanza still present so the prompt remains actionable.
-        assert (
-            "spec-kitty charter context --include styleguide:caveman-comemnts"
-            in joined
-        )
+        assert "spec-kitty charter context --include styleguide:caveman-comemnts" in joined
 
         # Warning surfaced through the standard channel.
-        miss = [
-            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
-        ]
+        miss = [w for w in captured if issubclass(w.category, CharterCatalogMissWarning)]
         assert len(miss) == 1
         assert "typo_suspected" in str(miss[0].message)
 
@@ -347,9 +332,7 @@ class TestRendererIntegration:
         )
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always")
-            lines = _render_selected_styleguides(
-                ["totally-distinct-name"], service
-            )
+            lines = _render_selected_styleguides(["totally-distinct-name"], service)
         joined = "\n".join(lines)
 
         assert "styleguide:totally-distinct-name" in joined
@@ -357,9 +340,7 @@ class TestRendererIntegration:
         assert "doctrine validate" in joined
         assert "project, org, and built-in" in joined
 
-        miss = [
-            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
-        ]
+        miss = [w for w in captured if issubclass(w.category, CharterCatalogMissWarning)]
         assert len(miss) == 1
         assert "missing_artifact" in str(miss[0].message)
 
@@ -373,9 +354,7 @@ class TestRendererIntegration:
         service = _StubService(styleguides=_StubRepo(items={}))
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always")
-            lines = _render_selected_styleguides(
-                ["dropped-by-schema-validation"], service
-            )
+            lines = _render_selected_styleguides(["dropped-by-schema-validation"], service)
         joined = "\n".join(lines)
 
         assert "Cause: missing_artifact" in joined
@@ -384,9 +363,7 @@ class TestRendererIntegration:
         # step (this is the RISK-3 contract).
         assert "spec-kitty doctrine validate" in joined
 
-        miss = [
-            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
-        ]
+        miss = [w for w in captured if issubclass(w.category, CharterCatalogMissWarning)]
         assert len(miss) == 1
 
 
@@ -439,9 +416,7 @@ class TestProfileRendererIntegration:
 
         # Warning carries the profile context so log aggregators can
         # correlate the miss to the offending profile.
-        miss = [
-            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
-        ]
+        miss = [w for w in captured if issubclass(w.category, CharterCatalogMissWarning)]
         assert len(miss) == 1
         assert "profile:ghost-cite" in str(miss[0].message)
 
@@ -469,9 +444,7 @@ class TestScopeFilteredRendererIntegration:
     applies_to_languages scope does not include the active language set.
     """
 
-    def test_scope_filtered_styleguide_renders_scope_filtered_cause(
-        self, tmp_path: Path
-    ) -> None:
+    def test_scope_filtered_styleguide_renders_scope_filtered_cause(self, tmp_path: Path) -> None:
         """Artifact present but scope-filtered must emit SCOPE_FILTERED stanza."""
         built_in_dir = tmp_path / "built-in"
         _write_styleguide_yaml(
@@ -488,9 +461,7 @@ class TestScopeFilteredRendererIntegration:
         )
 
         # Active language set does NOT include "python" — artifact is scope-filtered.
-        repo = StyleguideRepository(
-            built_in_dir=built_in_dir, active_languages=["java"]
-        )
+        repo = StyleguideRepository(built_in_dir=built_in_dir, active_languages=["java"])
 
         # The artifact must be scope-filtered, not in the loaded catalog.
         assert repo.get("python-style") is None
@@ -506,24 +477,18 @@ class TestScopeFilteredRendererIntegration:
         joined = "\n".join(lines)
 
         # FR-013 contract: stanza must classify as SCOPE_FILTERED, not MISSING_ARTIFACT.
-        assert "Cause: scope_filtered" in joined, (
-            f"Expected 'Cause: scope_filtered' but got:\n{joined}"
-        )
+        assert "Cause: scope_filtered" in joined, f"Expected 'Cause: scope_filtered' but got:\n{joined}"
         assert "styleguide:python-style" in joined
 
         # The suggestion must mention the applies_to_languages scope cause.
         assert "applies_to_languages" in joined or "scope" in joined
 
         # Warning must also carry scope_filtered.
-        miss = [
-            w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
-        ]
+        miss = [w for w in captured if issubclass(w.category, CharterCatalogMissWarning)]
         assert len(miss) == 1
         assert "scope_filtered" in str(miss[0].message)
 
-    def test_genuinely_absent_artifact_still_emits_missing_artifact(
-        self, tmp_path: Path
-    ) -> None:
+    def test_genuinely_absent_artifact_still_emits_missing_artifact(self, tmp_path: Path) -> None:
         """Unrelated artifact IDs still yield MISSING_ARTIFACT (no regression)."""
         built_in_dir = tmp_path / "built-in"
         _write_styleguide_yaml(
@@ -538,18 +503,14 @@ class TestScopeFilteredRendererIntegration:
             },
         )
 
-        repo = StyleguideRepository(
-            built_in_dir=built_in_dir, active_languages=["python"]
-        )
+        repo = StyleguideRepository(built_in_dir=built_in_dir, active_languages=["python"])
 
         class _ServiceWithRealRepo:
             styleguides = repo
 
         with warnings.catch_warnings(record=True):
             warnings.simplefilter("always")
-            lines = _render_selected_styleguides(
-                ["completely-absent-id"], _ServiceWithRealRepo()
-            )
+            lines = _render_selected_styleguides(["completely-absent-id"], _ServiceWithRealRepo())
 
         joined = "\n".join(lines)
 

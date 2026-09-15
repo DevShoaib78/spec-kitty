@@ -85,8 +85,6 @@ def decode_meta(
         return _absorb(on_malformed)
     if not isinstance(data, dict):
         if on_malformed == "raise":
-            raise MetaDecodeError(
-                f"Expected JSON object, got {type(data).__name__}"
-            )
+            raise MetaDecodeError(f"Expected JSON object, got {type(data).__name__}")
         return _absorb(on_malformed)
     return data

@@ -109,6 +109,7 @@ def _default_status_ports() -> TasksPorts:
     human render AND the ``@patch("...tasks.console.print")`` seams intercepting.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     return TasksPorts(
         fs=_tasks.RealFsReader(),
         coord=_tasks.RealCoordCommitRouter(),
@@ -158,18 +159,15 @@ def _st_resolve_dirs(st: _StatusState) -> None:
     (WP08 T037, FR-030) with the legacy worktree-aware fallback preserved.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     st.cwd = Path.cwd().resolve()
     repo_root = _tasks.locate_project_root(st.cwd)
     if repo_root is None:
         raise typer.Exit(1)
     st.repo_root = repo_root
 
-    st.mission_slug = _tasks._find_mission_slug(
-        explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root
-    )
-    st.main_repo_root, _ = _tasks._ensure_target_branch_checked_out(
-        repo_root, st.mission_slug, st.json_output
-    )
+    st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
+    st.main_repo_root, _ = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
 
     # Route through the single guarded read-side seam (WP01/IC-01; FR-002, C-007).
     from specify_cli.missions._read_path_resolver import (
@@ -200,12 +198,7 @@ def _st_resolve_dirs(st: _StatusState) -> None:
 
     # PRIMARY leg — tasks/ is PRIMARY-partition (FR-001 / C-001 per-leg split —
     # WP03 T009). The STATUS leg stays on the coord-aware ``feature_dir`` above.
-    st.tasks_dir = (
-        placement_seam(st.main_repo_root, st.mission_slug).read_dir(
-            MissionArtifactKind.WORK_PACKAGE_TASK
-        )
-        / "tasks"
-    )
+    st.tasks_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks"
     if not st.tasks_dir.exists():
         _tasks.console.print(f"[red]Error:[/red] Tasks directory not found: {st.tasks_dir}")
         raise typer.Exit(1)
@@ -272,11 +265,10 @@ def _st_gated_runtime_fields(feature_dir: Path, wp_id: str | None) -> tuple[str,
     return str(row["agent"]), str(row["shell_pid"])
 
 
-def _st_resolve_execution_mode(
-    front: str, main_repo_root: Path, mission_slug: str, wp_id: str | None
-) -> tuple[str, str]:
+def _st_resolve_execution_mode(front: str, main_repo_root: Path, mission_slug: str, wp_id: str | None) -> tuple[str, str]:
     """Resolve ``(execution_mode, workspace_kind)`` for one WP row (verbatim fallbacks)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     if wp_id is None:
         # No work_package_id in frontmatter — the workspace resolvers require a
         # WP id, so classification is impossible. Take the same frontmatter →
@@ -378,9 +370,7 @@ def _st_load_work_packages(st: _StatusState) -> None:
         else:
             wp_deps = []
         st.wp_dependencies[wp_id or wp_file.stem] = wp_deps
-        execution_mode, workspace_kind = _st_resolve_execution_mode(
-            front, st.main_repo_root, st.mission_slug, wp_id
-        )
+        execution_mode, workspace_kind = _st_resolve_execution_mode(front, st.main_repo_root, st.mission_slug, wp_id)
         # Route agent/shell_pid + the resolved-binding actuals through the ONE
         # reconstruction reader (SC-007). The authored ``agent_profile`` stays
         # frontmatter-canonical (design intent for the HiC marker) and DISTINCT
@@ -426,6 +416,7 @@ def _st_load_work_packages(st: _StatusState) -> None:
 def _st_apply_review_flags(st: _StatusState) -> None:
     """Phase C: annotate rows with stale-verdict + stalled-review warnings."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     st.review_stall_threshold = _tasks._review_stall_threshold_minutes(st.main_repo_root)
     st.stale_verdicts, st.stalled_wps = _apply_review_status_flags(
         st.work_packages,
@@ -487,11 +478,10 @@ def _st_emit_json(st: _StatusState, ports: TasksPorts) -> None:
     print(ports.render.json_envelope(result))
 
 
-def _st_board_cell(
-    wp: Any, lane: Lane, main_repo_root: Path, profile_repo: ProfileLookup | None
-) -> str:
+def _st_board_cell(wp: Any, lane: Lane, main_repo_root: Path, profile_repo: ProfileLookup | None) -> str:
     """Build one kanban cell string (marker + stale/claimed/review decoration)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     title_truncated = wp["title"][:22] + "..." if len(wp["title"]) > 22 else wp["title"]
     marker = _tasks._get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
     display_id = f"{marker}{wp['id']}"
@@ -536,9 +526,7 @@ def _st_render_overview(ports: TasksPorts, st: _StatusState, view: StatusView) -
     ports.render.human("")
 
 
-def _st_render_board(
-    ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None
-) -> None:
+def _st_render_board(ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None) -> None:
     """Render the kanban board table via the Render port.
 
     Folds claimed + in_review WPs into the "Doing" column with markers; the row
@@ -621,11 +609,10 @@ def _st_render_arbiter(ports: TasksPorts, st: _StatusState) -> None:
         pass  # review package not yet available
 
 
-def _st_render_review_queues(
-    ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None
-) -> None:
+def _st_render_review_queues(ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None) -> None:
     """Render the for_review / approved / done-with-stale-verdict sections."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     by_lane = view.lanes
     if by_lane[Lane.FOR_REVIEW]:
         ports.render.human("[bold cyan]👀 Ready for Review:[/bold cyan]")
@@ -650,10 +637,7 @@ def _st_render_review_queues(
         ports.render.human("[bold green]✅ Done (with stale verdict warnings):[/bold green]")
         for wp in done_stale:
             marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, repo=profile_repo)
-            ports.render.human(
-                f"  • {marker}{wp['id']} - {wp['title']}"
-                "  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
-            )
+            ports.render.human(f"  • {marker}{wp['id']} - {wp['title']}  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]")
         ports.render.human("")
 
 
@@ -666,6 +650,7 @@ def _st_render_active(
 ) -> None:
     """Render the claimed / in_progress / in_review sections via the Render port."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     by_lane = view.lanes
     if by_lane[Lane.CLAIMED]:
         ports.render.human("[bold blue]🔄 Claimed (shown in Doing column):[/bold blue]")
@@ -707,11 +692,10 @@ def _st_render_active(
         ports.render.human("")
 
 
-def _st_render_planned(
-    ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None
-) -> None:
+def _st_render_planned(ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None) -> None:
     """Render the "Next Up (Planned)" section via the Render port."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     by_lane = view.lanes
     if by_lane[Lane.PLANNED]:
         ports.render.human("[bold yellow]📋 Next Up (Planned):[/bold yellow]")
@@ -789,9 +773,7 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
     # tooling-friction.md), but it is a genuine, free win for the empty/
     # not-yet-started case that the removed bare ``AgentProfileRepository()``
     # construction paid unconditionally.
-    _needs_profile_lookup = any(
-        row.get("agent_profile") for rows in by_lane.values() for row in rows
-    )
+    _needs_profile_lookup = any(row.get("agent_profile") for rows in by_lane.values() for row in rows)
     if _needs_profile_lookup:
         try:
             # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): routed
@@ -820,9 +802,7 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
                 build_activation_aware_doctrine_service,
             )
 
-            profile_repo = build_activation_aware_doctrine_service(
-                st.main_repo_root
-            ).agent_profile_repository
+            profile_repo = build_activation_aware_doctrine_service(st.main_repo_root).agent_profile_repository
         except ImportError:
             # Genuinely-absent-module case only: ``charter`` is first-party
             # and ships in the same wheel, so this can only fire under a
@@ -867,6 +847,7 @@ def _do_status(
     WP05 byte-identical aggregation and the git/clock staleness sequence are intact.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+
     ports = ports or _default_status_ports()
     st = _StatusState(mission=mission, json_output=json_output, stale_threshold=stale_threshold)
     try:
@@ -966,9 +947,7 @@ def _get_hic_marker(
                 build_activation_aware_doctrine_service,
             )
 
-            profile_repo = build_activation_aware_doctrine_service(
-                repo_root
-            ).agent_profile_repository
+            profile_repo = build_activation_aware_doctrine_service(repo_root).agent_profile_repository
 
         profile = profile_repo.get(agent_profile)
         if profile and profile.sentinel:

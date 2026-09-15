@@ -151,9 +151,7 @@ def start_implementation_status(
         current_actor = current.actor
 
         if current_lane == Lane.GENESIS:
-            raise WorkPackageStartRejected(
-                f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`"
-            )
+            raise WorkPackageStartRejected(f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`")
 
         if current_lane == Lane.PLANNED:
             events = emit_status_transition_batch_transactional(

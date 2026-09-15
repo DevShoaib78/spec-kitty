@@ -171,9 +171,7 @@ agent: codex
 Body for {wp_id}.
 """
     for wp_id in ("WP01", "WP02", "WP03"):
-        (tasks_dir / f"{wp_id}-demo.md").write_text(
-            wp_template.format(wp_id=wp_id), encoding="utf-8"
-        )
+        (tasks_dir / f"{wp_id}-demo.md").write_text(wp_template.format(wp_id=wp_id), encoding="utf-8")
 
     # Seed status events: WP01 planned, WP02 in_progress, WP03 done.
     from specify_cli.status.models import Lane, StatusEvent

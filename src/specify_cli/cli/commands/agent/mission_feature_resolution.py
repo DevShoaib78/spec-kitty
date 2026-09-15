@@ -61,8 +61,7 @@ def _kind_for_artifact(artifact_type: str) -> MissionArtifactKind:
         return _ARTIFACT_TYPE_TO_KIND[artifact_type]
     except KeyError as exc:
         raise KeyError(
-            f"_commit_to_branch: no MissionArtifactKind mapped for artifact_type "
-            f"{artifact_type!r}; add it to _ARTIFACT_TYPE_TO_KIND (no silent default)."
+            f"_commit_to_branch: no MissionArtifactKind mapped for artifact_type {artifact_type!r}; add it to _ARTIFACT_TYPE_TO_KIND (no silent default)."
         ) from exc
 
 
@@ -143,9 +142,7 @@ def _safe_load_meta(repo_root: Path, mission_slug: str) -> dict[str, object] | N
     # directly — PRIMARY_METADATA, since the read is meta.json (FR-003 above).
     # WP08 (T036): the caller-side canonicalizer fold DROPPED — redundant with
     # the seam's own internal fold for a PRIMARY-partition kind.
-    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     try:
         meta = load_meta_fail_closed(feature_dir)
     except MissionMetaReadError:
@@ -211,9 +208,7 @@ def _find_feature_directory(
     return feature_dir
 
 
-def _resolve_mission_dir_name_primary_anchored(
-    repo_root: Path, explicit_feature: str | None
-) -> str | None:
+def _resolve_mission_dir_name_primary_anchored(repo_root: Path, explicit_feature: str | None) -> str | None:
     """Resolve a mission handle to its on-disk dir name WITHOUT requiring coord.
 
     #11 / #1718 / #1692: ``finalize-tasks`` only needs the mission slug to anchor
@@ -283,9 +278,7 @@ def _resolve_mission_dir_name_primary_anchored(
     return None
 
 
-def _primary_anchored_feature_dir(
-    repo_root: Path, explicit_feature: str | None
-) -> Path | None:
+def _primary_anchored_feature_dir(repo_root: Path, explicit_feature: str | None) -> Path | None:
     """Resolve a mission handle to its PRIMARY-checkout feature dir, or ``None``.
 
     The planning-authoring surface companion to finalize-tasks' input read: both

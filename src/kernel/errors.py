@@ -34,7 +34,6 @@ __all__ = [
 ]
 
 
-
 class KittyInternalConsistencyError(Exception):
     """Base for errors indicating a violated internal invariant.
 

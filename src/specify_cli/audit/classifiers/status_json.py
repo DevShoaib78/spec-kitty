@@ -94,10 +94,7 @@ def classify_status_json(
                 code="SNAPSHOT_DRIFT",
                 severity=Severity.ERROR,
                 artifact_path="status.json",
-                detail=(
-                    "reducer raised during drift check: "
-                    f"{format_exception_detail(exc)}"
-                ),
+                detail=(f"reducer raised during drift check: {format_exception_detail(exc)}"),
             )
         )
         return findings

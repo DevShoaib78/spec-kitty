@@ -30,6 +30,7 @@ from specify_cli.core.file_lock import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+
 @pytest.fixture()
 def lock_path(tmp_path: Path) -> Path:
     return tmp_path / "subdir" / "refresh.lock"
@@ -118,9 +119,7 @@ async def test_stale_lock_adopted(lock_path: Path) -> None:
     _write_record(lock_path, age_s=120.0, pid=999_999)
     assert read_lock_record(lock_path) is not None
 
-    async with MachineFileLock(
-        lock_path, acquire_timeout_s=1.0, stale_after_s=60.0
-    ) as record:
+    async with MachineFileLock(lock_path, acquire_timeout_s=1.0, stale_after_s=60.0) as record:
         # The new acquirer adopted the lock and rewrote the record.
         assert record.pid == os.getpid()
         on_disk = read_lock_record(lock_path)
@@ -185,9 +184,7 @@ async def test_force_release_does_not_unlink_when_stale_lock_is_held(
 # ---------------------------------------------------------------------------
 
 
-async def test_atomic_content_write_failure_leaves_no_partial(
-    lock_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_atomic_content_write_failure_leaves_no_partial(lock_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def _exploding_write(fd: int, payload: bytes) -> None:
         raise OSError("disk full")
 
@@ -222,9 +219,7 @@ def test_platform_dispatch_posix() -> None:
     assert hasattr(fcntl, "LOCK_UN")
 
 
-@pytest.mark.skipif(
-    sys.platform != "win32", reason="Windows-only path uses msvcrt"
-)
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only path uses msvcrt")
 def test_platform_dispatch_windows(tmp_path: Path) -> None:  # pragma: no cover - exercised on win32 CI only
     import msvcrt  # type: ignore[import-not-found]
 
@@ -316,9 +311,7 @@ def test_read_lock_record_non_string_fields_returns_none(lock_path: Path) -> Non
     assert read_lock_record(lock_path) is None
 
 
-def test_force_release_clear_failure(
-    lock_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_force_release_clear_failure(lock_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _write_record(lock_path, age_s=120.0)
 
     def _boom(_fd: int, _payload: bytes) -> None:
@@ -328,9 +321,7 @@ def test_force_release_clear_failure(
     assert force_release(lock_path, only_if_age_s=60.0) is False
 
 
-def test_force_release_propagates_genuine_os_lock_error(
-    lock_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_force_release_propagates_genuine_os_lock_error(lock_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # #3009-class Sonar S3516 fix: a genuine (non-contention) OSError from
     # _os_lock must PROPAGATE, not be swallowed as False -- per the module
     # contract (_is_contention_error / _os_lock docstrings) and the honored twin
@@ -370,9 +361,7 @@ async def test_aexit_is_idempotent_when_no_fd_held(lock_path: Path) -> None:
     await lock.__aexit__(None, None, None)
 
 
-async def test_acquire_propagates_non_contention_oserror(
-    lock_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_acquire_propagates_non_contention_oserror(lock_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def _boom(fd: int) -> None:
         # Simulate a non-contention OSError (e.g. ENOSPC).
         err = OSError("disk full")
@@ -395,9 +384,7 @@ def test_get_package_version_falls_back_when_missing(
     assert fl._get_package_version() == "unknown"
 
 
-def test_read_lock_record_handles_oserror(
-    lock_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_read_lock_record_handles_oserror(lock_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path.write_text(json.dumps({"schema_version": 1, "pid": 1, "started_at": "x", "host": "h", "version": "v"}))
 

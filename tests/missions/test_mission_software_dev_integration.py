@@ -64,9 +64,7 @@ class TestGuardsSection:
 
     def test_five_guards_defined(self, software_dev_config: dict) -> None:
         guards = software_dev_config["guards"]
-        assert frozenset(guards.keys()) == frozenset(
-            {"has_spec", "has_plan", "has_tasks", "all_wps_accepted", "review_passed"}
-        )
+        assert frozenset(guards.keys()) == frozenset({"has_spec", "has_plan", "has_tasks", "all_wps_accepted", "review_passed"})
 
     def test_guard_names(self, software_dev_config: dict) -> None:
         expected = {"has_spec", "has_plan", "has_tasks", "all_wps_accepted", "review_passed"}
@@ -137,9 +135,7 @@ class TestV0BackwardCompatibility:
     def test_v0_workflow_preserved(self, software_dev_config: dict) -> None:
         assert "workflow" in software_dev_config
         phases = software_dev_config["workflow"]["phases"]
-        assert frozenset(p["name"] for p in phases) == frozenset(
-            {"research", "design", "implement", "test", "review"}
-        )
+        assert frozenset(p["name"] for p in phases) == frozenset({"research", "design", "implement", "test", "review"})
 
     def test_v0_artifacts_preserved(self, software_dev_config: dict) -> None:
         assert "artifacts" in software_dev_config

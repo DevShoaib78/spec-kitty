@@ -98,19 +98,17 @@ def _lanes_json_for(mission: object) -> None:
     )
 
 
-def test_clean_forecast_json_payload_key_set(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_clean_forecast_json_payload_key_set(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
-        mission, from_lane=Lane.FOR_REVIEW, to_lane=Lane.APPROVED,
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
         event_id="01KVXHDKFORECAST00000001",
     )
     _lanes_json_for(mission)
-    monkeypatch.setattr(
-        "specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root
-    )
+    monkeypatch.setattr("specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root)
 
     # On a clean mission the forecast prints the payload and returns (no Exit).
     forecast.run_dry_run_forecast(
@@ -131,9 +129,7 @@ def test_clean_forecast_json_payload_key_set(
     assert payload["push"] is False
 
 
-def test_retaining_mission_forecast_reports_resolved_retention(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_retaining_mission_forecast_reports_resolved_retention(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """FR-008 (#3131): a mission with ``retain_branches``/``retain_worktrees``
     in meta.json and NO explicit CLI flags reports the RESOLVED cleanup
     decision (both False) plus ``retention`` provenance, not raw flag echo.
@@ -147,13 +143,13 @@ def test_retaining_mission_forecast_reports_resolved_retention(
 
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
-        mission, from_lane=Lane.FOR_REVIEW, to_lane=Lane.APPROVED,
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
         event_id="01KVXHDKFORECAST00000004",
     )
     _lanes_json_for(mission)
-    monkeypatch.setattr(
-        "specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root
-    )
+    monkeypatch.setattr("specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root)
 
     forecast.run_dry_run_forecast(
         repo_root=mission.repo_root,
@@ -174,9 +170,7 @@ def test_retaining_mission_forecast_reports_resolved_retention(
     assert payload["retention"]["warnings"]
 
 
-def test_review_artifact_conflict_blocks_json(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_review_artifact_conflict_blocks_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """WP06 repoint: ``find_rejected_review_artifact_conflicts`` is pure-event
     post-WP05 (verdict-seam-write-unification-01KZ9Q35, FR-013) -- it no
     longer reads ``review-cycle-N.md`` frontmatter at all. The on-disk
@@ -189,7 +183,9 @@ def test_review_artifact_conflict_blocks_json(
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
-        mission, from_lane=Lane.FOR_REVIEW, to_lane=Lane.APPROVED,
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
         event_id="01KVXHDKFORECAST00000002",
         review_result=ReviewResult(
             reviewer="reviewer-renata",
@@ -198,15 +194,16 @@ def test_review_artifact_conflict_blocks_json(
         ),
     )
     artifact = ReviewCycleArtifact(
-        cycle_number=1, wp_id="WP01", mission_slug=mission.mission_slug,
+        cycle_number=1,
+        wp_id="WP01",
+        mission_slug=mission.mission_slug,
         reviewer_agent="reviewer-renata",
-        reviewed_at="2026-05-14T12:00:00+00:00", body="# Review\n\nVerdict: rejected\n",
+        reviewed_at="2026-05-14T12:00:00+00:00",
+        body="# Review\n\nVerdict: rejected\n",
     )
     artifact.write(mission.tasks_dir / "WP01-regression-harness" / "review-cycle-1.md")
     _lanes_json_for(mission)
-    monkeypatch.setattr(
-        "specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root
-    )
+    monkeypatch.setattr("specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root)
 
     with pytest.raises(typer.Exit) as exc:
         forecast.run_dry_run_forecast(
@@ -225,13 +222,9 @@ def test_review_artifact_conflict_blocks_json(
     assert payload["diagnostic_code"] == REJECTED_REVIEW_ARTIFACT_CONFLICT
 
 
-def test_missing_lanes_raises_exit_1(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_missing_lanes_raises_exit_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     mission = create_mission_fixture(tmp_path)
-    monkeypatch.setattr(
-        "specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root
-    )
+    monkeypatch.setattr("specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root)
     with pytest.raises(typer.Exit) as exc:
         forecast.run_dry_run_forecast(
             repo_root=mission.repo_root,
@@ -328,20 +321,18 @@ def test_review_artifact_block_human_channel(capsys: pytest.CaptureFixture[str])
     assert "Mission: m" in out
 
 
-def test_clean_forecast_human_channel_prints_would_assign(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_clean_forecast_human_channel_prints_would_assign(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """Human-output clean forecast with a would-assign number (line 201 + 207)."""
     mission = create_mission_fixture(tmp_path)
     write_work_package(mission, WorkPackageSpec(lane="approved"))
     append_status_event(
-        mission, from_lane=Lane.FOR_REVIEW, to_lane=Lane.APPROVED,
+        mission,
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.APPROVED,
         event_id="01KVXHDKFORECAST00000003",
     )
     _lanes_json_for(mission)
-    monkeypatch.setattr(
-        "specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root
-    )
+    monkeypatch.setattr("specify_cli.merge.forecast.get_main_repo_root", lambda _r: mission.repo_root)
     with patch.object(forecast, "_scan_would_assign_mission_number", return_value=42):
         forecast.run_dry_run_forecast(
             repo_root=mission.repo_root,

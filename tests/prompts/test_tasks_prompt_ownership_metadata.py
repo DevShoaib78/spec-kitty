@@ -10,31 +10,10 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _TASKS_PROMPT_SURFACES = (
-    _REPO_ROOT
-    / "packs"
-    / "built-in"
-    / "missions"
-    / "mission-steps"
-    / "software-dev"
-    / "tasks"
-    / "prompt.md",
-    _REPO_ROOT
-    / ".kittify"
-    / "overrides"
-    / "missions"
-    / "software-dev"
-    / "command-templates"
-    / "tasks.md",
+    _REPO_ROOT / "packs" / "built-in" / "missions" / "mission-steps" / "software-dev" / "tasks" / "prompt.md",
+    _REPO_ROOT / ".kittify" / "overrides" / "missions" / "software-dev" / "command-templates" / "tasks.md",
 )
-_TASK_PROMPT_TEMPLATE = (
-    _REPO_ROOT
-    / "packs"
-    / "built-in"
-    / "missions"
-    / "software-dev"
-    / "templates"
-    / "task-prompt-template.md"
-)
+_TASK_PROMPT_TEMPLATE = _REPO_ROOT / "packs" / "built-in" / "missions" / "software-dev" / "templates" / "task-prompt-template.md"
 
 
 def _ownership_metadata_section(prompt_path: Path) -> str:
@@ -97,8 +76,7 @@ def test_tasks_prompt_states_kitty_specs_ban_for_code_change_wps(prompt_path: Pa
     text = prompt_path.read_text(encoding="utf-8")
 
     assert "INVALID_WP_OWNED_FILES_KITTY_SPECS" in text, (
-        f"{prompt_path} must name the finalize-tasks error code so authors can "
-        "connect the prompt rule to the validation failure."
+        f"{prompt_path} must name the finalize-tasks error code so authors can connect the prompt rule to the validation failure."
     )
     assert "code_change" in text and "kitty-specs/" in text
     assert "must NOT list any `kitty-specs/` path" in text
@@ -110,9 +88,7 @@ def test_tasks_prompt_states_planning_artifact_confinement(prompt_path: Path) ->
 
     assert "planning_artifact" in text
     assert "`kitty-specs/` or `docs/`" in text, (
-        f"{prompt_path} must state the confinement guard: the planning_artifact "
-        "exemption applies only when EVERY owned_files entry is under kitty-specs/ "
-        "or docs/."
+        f"{prompt_path} must state the confinement guard: the planning_artifact exemption applies only when EVERY owned_files entry is under kitty-specs/ or docs/."
     )
     assert "not exempt" in text
 
@@ -122,12 +98,9 @@ def test_tasks_prompt_states_where_per_wp_design_notes_go(prompt_path: Path) -> 
     text = prompt_path.read_text(encoding="utf-8")
 
     assert "design notes" in text, (
-        f"{prompt_path} must state where per-WP design notes / kitty-specs "
-        "deliverables are declared (a separate confined planning_artifact WP)."
+        f"{prompt_path} must state where per-WP design notes / kitty-specs deliverables are declared (a separate confined planning_artifact WP)."
     )
-    assert "separate confined `planning_artifact` WP" in text or (
-        "their own confined `planning_artifact` WP" in text
-    )
+    assert "separate confined `planning_artifact` WP" in text or ("their own confined `planning_artifact` WP" in text)
 
 
 def test_task_prompt_template_states_kitty_specs_owned_files_rule() -> None:

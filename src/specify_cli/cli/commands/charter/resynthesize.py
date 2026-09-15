@@ -1,4 +1,5 @@
 """``spec-kitty charter resynthesize`` command (WP06 per-subcommand split)."""
+
 from __future__ import annotations
 
 import json
@@ -17,6 +18,7 @@ from specify_cli.cli.commands.charter._app import (
     console,
 )
 from specify_cli.cli.commands.charter._common import _emit_error
+
 # See ``synthesize.py`` for the package-module pattern: patches of
 # ``specify_cli.cli.commands.charter.<name>`` must be visible here too. We route
 # ``_assert_bundle_compatible``, ``_build_synthesis_request``,
@@ -33,12 +35,7 @@ def charter_resynthesize(  # noqa: C901
     topic: str | None = typer.Option(
         None,
         "--topic",
-        help=(
-            "Structured topic selector: "
-            "<kind>:<slug> (project-local), "
-            "<drg-urn> (built-in+project graph), "
-            "or <interview-section-label>."
-        ),
+        help=("Structured topic selector: <kind>:<slug> (project-local), <drg-urn> (built-in+project graph), or <interview-section-label>."),
     ),
     list_topics: bool = typer.Option(
         False,
@@ -48,10 +45,7 @@ def charter_resynthesize(  # noqa: C901
     adapter: str = typer.Option(
         "generated",
         "--adapter",
-        help=(
-            "Adapter to use. 'generated' (default) validates agent-authored YAML under "
-            ".kittify/charter/generated/. 'fixture' is offline/testing only."
-        ),
+        help=("Adapter to use. 'generated' (default) validates agent-authored YAML under .kittify/charter/generated/. 'fixture' is offline/testing only."),
     ),
     skip_code_evidence: bool = typer.Option(
         False,
@@ -93,7 +87,6 @@ def charter_resynthesize(  # noqa: C901
         render_error_panel,
     )
 
-
     try:
         repo_root = _charter_pkg.find_repo_root()
         charter_dir = repo_root / ".kittify" / "charter"
@@ -117,11 +110,16 @@ def charter_resynthesize(  # noqa: C901
         if list_topics:
             topics = _charter_pkg._list_resynthesis_topics(request, repo_root)
             if json_output:
-                print(json.dumps({
-                    "result": "success",
-                    "topics": topics,
-                    "warnings": warnings_collected,
-                }, indent=2))
+                print(
+                    json.dumps(
+                        {
+                            "result": "success",
+                            "topics": topics,
+                            "warnings": warnings_collected,
+                        },
+                        indent=2,
+                    )
+                )
                 return
 
             if not any(topics.values()):
@@ -166,34 +164,41 @@ def charter_resynthesize(  # noqa: C901
 
         if result.is_noop:
             if json_output:
-                print(json.dumps({
-                    "result": "noop",
-                    "topic": topic,
-                    "diagnostic": result.diagnostic,
-                    "matched_form": result.resolved_topic.matched_form,
-                    "targets_count": 0,
-                    "warnings": warnings_collected,
-                }, indent=2))
+                print(
+                    json.dumps(
+                        {
+                            "result": "noop",
+                            "topic": topic,
+                            "diagnostic": result.diagnostic,
+                            "matched_form": result.resolved_topic.matched_form,
+                            "targets_count": 0,
+                            "warnings": warnings_collected,
+                        },
+                        indent=2,
+                    )
+                )
                 return
             console.print(f"[yellow]No-op:[/yellow] {result.diagnostic}")
             return
 
-        regenerated = [
-            f"{t.kind}:{t.slug}"
-            for t in result.resolved_topic.targets
-        ]
+        regenerated = [f"{t.kind}:{t.slug}" for t in result.resolved_topic.targets]
 
         if json_output:
-            print(json.dumps({
-                "result": "success",
-                "topic": topic,
-                "matched_form": result.resolved_topic.matched_form,
-                "matched_value": result.resolved_topic.matched_value,
-                "regenerated": regenerated,
-                "run_id": result.manifest.run_id,
-                "manifest_artifacts": len(result.manifest.artifacts),
-                "warnings": warnings_collected,
-            }, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "result": "success",
+                        "topic": topic,
+                        "matched_form": result.resolved_topic.matched_form,
+                        "matched_value": result.resolved_topic.matched_value,
+                        "regenerated": regenerated,
+                        "run_id": result.manifest.run_id,
+                        "manifest_artifacts": len(result.manifest.artifacts),
+                        "warnings": warnings_collected,
+                    },
+                    indent=2,
+                )
+            )
             return
 
         console.print(f"[green]Resynthesis complete[/green] (topic: {topic!r})")
@@ -209,9 +214,7 @@ def charter_resynthesize(  # noqa: C901
         if hasattr(e, "candidates") and e.candidates:
             cands = "\n".join(f"  * {c}" for c in e.candidates)
             panel_body += f"\n\nNearest candidates:\n{cands}"
-        panel_body += (
-            "\n\nRun 'spec-kitty charter resynthesize --list-topics' to see all valid selectors."
-        )
+        panel_body += "\n\nRun 'spec-kitty charter resynthesize --list-topics' to see all valid selectors."
         if json_output:
             _emit_error(console, json_output=True, message=panel_body)
         else:

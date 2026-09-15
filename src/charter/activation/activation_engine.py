@@ -111,9 +111,7 @@ class NoActivationRestrictionsError(RuntimeError):
     def __init__(self, kind: str) -> None:
         self.kind = kind
         super().__init__(
-            f"Kind {kind!r} has no explicit activation set. "
-            f"Run `spec-kitty upgrade` to initialize the default pack before "
-            f"modifying individual activations."
+            f"Kind {kind!r} has no explicit activation set. Run `spec-kitty upgrade` to initialize the default pack before modifying individual activations."
         )
 
 
@@ -179,9 +177,7 @@ def _current_list(config_data: Mapping[str, Any], yaml_key: str) -> list[str] | 
     if raw is None:
         return None
     if not isinstance(raw, list):
-        raise ValueError(
-            f"Activation key {yaml_key!r} must be a list, got {type(raw).__name__}."
-        )
+        raise ValueError(f"Activation key {yaml_key!r} must be a list, got {type(raw).__name__}.")
     return [str(item) for item in raw]
 
 
@@ -258,10 +254,7 @@ def plan_activation(
         # FR-021: no explicit activation set — materialize the default pack
         # into the plan (not onto disk) before appending.
         materialized = list(default_ids)
-        warnings.append(
-            f"Kind {kind!r} had no explicit activation set. "
-            f"Initialized from default pack ({len(materialized)} entries)."
-        )
+        warnings.append(f"Kind {kind!r} had no explicit activation set. Initialized from default pack ({len(materialized)} entries).")
         new_list = list(materialized)
     else:
         new_list = list(current)
@@ -337,10 +330,7 @@ def plan_deactivation(
         new_list.remove(artifact_id)
         deactivated.append(artifact_id)
     else:
-        warnings.append(
-            f"{artifact_id!r} is not in the activation set for kind {kind!r}. "
-            f"Nothing to deactivate."
-        )
+        warnings.append(f"{artifact_id!r} is not in the activation set for kind {kind!r}. Nothing to deactivate.")
 
     return ActivationPlan(
         yaml_key=yaml_key,
@@ -428,20 +418,14 @@ def _plan_promotion(
 
     if current is None:
         new_list = list(dict.fromkeys(default_ids))
-        warnings.append(
-            f"Key {yaml_key!r} had no explicit activation set. "
-            f"Preserved {len(new_list)} built-in entries before promotion "
-            f"(absent-key parity)."
-        )
+        warnings.append(f"Key {yaml_key!r} had no explicit activation set. Preserved {len(new_list)} built-in entries before promotion (absent-key parity).")
     else:
         new_list = list(current)
 
     activated: list[str] = []
     for artifact_id in dict.fromkeys(ids):
         if artifact_id in new_list:
-            warnings.append(
-                f"{artifact_id!r} is already activated for key {yaml_key!r}."
-            )
+            warnings.append(f"{artifact_id!r} is already activated for key {yaml_key!r}.")
         else:
             new_list.append(artifact_id)
             activated.append(artifact_id)

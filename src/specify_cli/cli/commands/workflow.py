@@ -60,13 +60,7 @@ def import_workflow(
 ) -> None:
     """Import a workflow YAML into `.kittify/overrides/workflows`."""
     workflow = load_workflow_file(source)
-    destination = (
-        project_root.resolve()
-        / ".kittify"
-        / "overrides"
-        / "workflows"
-        / f"{workflow.workflow_id}.yaml"
-    )
+    destination = project_root.resolve() / ".kittify" / "overrides" / "workflows" / f"{workflow.workflow_id}.yaml"
     _copy_workflow(source, destination, force=force)
     typer.echo(str(destination))
 

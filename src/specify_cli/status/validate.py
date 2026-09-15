@@ -22,7 +22,6 @@ from .transitions import CANONICAL_LANES, resolve_lane_alias
 from .wp_state import wp_state_for
 
 
-
 def _edge_is_legal(from_lane: str, to_lane: str) -> bool:
     """Decide edge legality via the FSM — the sole edge authority (I1).
 

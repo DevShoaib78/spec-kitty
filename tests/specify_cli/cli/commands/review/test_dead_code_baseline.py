@@ -61,9 +61,7 @@ def test_modern_mission_missing_baseline_emits_structured_failure(
     assert len(findings) == 1, f"Expected 1 finding, got {findings!r}"
     finding = findings[0]
     assert finding["type"] == "dead_code_baseline_missing"
-    assert finding["diagnostic_code"] == str(
-        MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE
-    )
+    assert finding["diagnostic_code"] == str(MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE)
     assert finding["diagnostic_code"] == "LIGHTWEIGHT_REVIEW_MISSING_BASELINE"
     assert finding["mission_id"] == "01KRKTT58XC5KR0HF523333R9S"
     assert finding["mission_slug"] == "example-modern-mission-01KRKTT5"
@@ -154,11 +152,5 @@ def test_undeterminable_finding_is_rendered_as_hard_failure(tmp_path: Path) -> N
 
 def test_diagnostic_code_string_is_stable() -> None:
     """The wire-stable code string MUST be exactly ``LIGHTWEIGHT_REVIEW_MISSING_BASELINE``."""
-    assert (
-        MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE.value
-        == "LIGHTWEIGHT_REVIEW_MISSING_BASELINE"
-    )
-    assert (
-        MissionReviewDiagnostic.LEGACY_MISSION_DEAD_CODE_SKIP.value
-        == "LEGACY_MISSION_DEAD_CODE_SKIP"
-    )
+    assert MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE.value == "LIGHTWEIGHT_REVIEW_MISSING_BASELINE"
+    assert MissionReviewDiagnostic.LEGACY_MISSION_DEAD_CODE_SKIP.value == "LEGACY_MISSION_DEAD_CODE_SKIP"

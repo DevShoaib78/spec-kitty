@@ -19,7 +19,6 @@ from specify_cli.core.paths import locate_project_root
 from kernel.clock import now_utc_iso
 
 
-
 def materialize(
     mission: Annotated[
         str | None,
@@ -72,11 +71,7 @@ def materialize(
         # (coord-aware) rather than the kind-blind slug resolver (NFR-001).
         from mission_runtime import MissionArtifactKind, placement_seam
 
-        feature_dirs = [
-            placement_seam(repo_root, mission_slug).read_dir(
-                MissionArtifactKind.STATUS_STATE
-            )
-        ]
+        feature_dirs = [placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)]
         if not feature_dirs[0].exists():
             console.print(f"[red]Error:[/red] Mission not found: {mission_slug}")
             raise typer.Exit(1)
@@ -84,9 +79,7 @@ def materialize(
         if not specs_dir.exists():
             feature_dirs = []
         else:
-            feature_dirs = sorted(
-                p for p in specs_dir.iterdir() if p.is_dir() and not p.name.startswith(".")
-            )
+            feature_dirs = sorted(p for p in specs_dir.iterdir() if p.is_dir() and not p.name.startswith("."))
 
     processed: list[dict[str, Any]] = []
     errors: list[str] = []
@@ -101,11 +94,13 @@ def materialize(
             files_written.append("progress.json")
             generate_lifecycle_json(feature_dir, derived_dir)
             files_written.append("lifecycle.json")
-            processed.append({
-                "mission_slug": slug,
-                "files_written": files_written,
-                "timestamp": now_utc_iso(),
-            })
+            processed.append(
+                {
+                    "mission_slug": slug,
+                    "files_written": files_written,
+                    "timestamp": now_utc_iso(),
+                }
+            )
         except Exception as exc:  # noqa: BLE001 — per-mission derived-view failure must not abort the full materialize pass
             errors.append(f"{slug}: {exc}")
 

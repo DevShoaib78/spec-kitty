@@ -174,9 +174,7 @@ def _inject_backed_legacy_content(tmp_path: Path) -> None:
     doctrine_dir = tmp_path / ".kittify" / "doctrine"
     graph_path = _graph_path(tmp_path)
     graph = _load_graph(graph_path)
-    graph["nodes"].append(
-        {"urn": _LEGACY_URN, "kind": "tactic", "label": "Legacy Preference Order Tactic (3270)"}
-    )
+    graph["nodes"].append({"urn": _LEGACY_URN, "kind": "tactic", "label": "Legacy Preference Order Tactic (3270)"})
     graph.setdefault("edges", []).append(
         {
             "source": _LEGACY_URN,
@@ -210,9 +208,7 @@ def _inject_backed_legacy_content(tmp_path: Path) -> None:
         content_hash=content_hash,
     )
     updated_manifest = finalize_manifest(manifest.model_copy(update={"artifacts": [*manifest.artifacts, new_entry]}))
-    manifest_path.write_text(
-        canonical_yaml(updated_manifest.model_dump(mode="python")).decode("utf-8"), encoding="utf-8"
-    )
+    manifest_path.write_text(canonical_yaml(updated_manifest.model_dump(mode="python")).decode("utf-8"), encoding="utf-8")
 
     existing_prov_path = tmp_path / ".kittify" / "charter" / "provenance" / "tactic-how-we-apply-directive-003.yaml"
     existing_prov_entry = load_provenance(existing_prov_path)
@@ -306,9 +302,7 @@ def test_prune_removes_divergent_content_and_lists_each_deletion(tmp_path: Path)
     graph = _load_graph(_graph_path(tmp_path))
     node_urns = {n["urn"] for n in graph["nodes"]}
     assert _LEGACY_URN not in node_urns, "--prune must excise the divergent node"
-    assert all(e["source"] != _LEGACY_URN for e in graph.get("edges", [])), (
-        "amendment #1: --prune must drop the node's edges TOGETHER with the node"
-    )
+    assert all(e["source"] != _LEGACY_URN for e in graph.get("edges", [])), "amendment #1: --prune must drop the node's edges TOGETHER with the node"
 
 
 # ---------------------------------------------------------------------------
@@ -404,9 +398,7 @@ def test_orphaned_removal_without_prune_refuses_with_remediation(tmp_path: Path)
     graph = _load_graph(_graph_path(tmp_path))
     node_urns = {n["urn"] for n in graph["nodes"]}
     assert _ORPHAN_URN in node_urns
-    assert any(e["source"] == _ORPHAN_URN for e in graph.get("edges", [])), (
-        "the orphan node's edge must still be present alongside the node"
-    )
+    assert any(e["source"] == _ORPHAN_URN for e in graph.get("edges", [])), "the orphan node's edge must still be present alongside the node"
 
 
 # ---------------------------------------------------------------------------
@@ -420,9 +412,7 @@ def test_corrupt_overlay_refuses_with_actionable_message_and_no_write(tmp_path: 
     _seed_complete_bundle(tmp_path)
 
     manifest_before = (tmp_path / MANIFEST_PATH).read_bytes()
-    _graph_path(tmp_path).write_text(
-        "schema_version: '1.0'\nnodes: [\n  {urn: broken\n", encoding="utf-8"
-    )
+    _graph_path(tmp_path).write_text("schema_version: '1.0'\nnodes: [\n  {urn: broken\n", encoding="utf-8")
 
     result = _invoke_synthesize(tmp_path, _request("01BBBBBBBBBBBBBBBBBBBBBBBBB"), adapter, [])
 
@@ -433,9 +423,7 @@ def test_corrupt_overlay_refuses_with_actionable_message_and_no_write(tmp_path: 
     assert "Refused" in warnings
     assert "No write was made" in warnings
 
-    assert (tmp_path / MANIFEST_PATH).read_bytes() == manifest_before, (
-        "a corrupt-overlay refusal must not rewrite the manifest"
-    )
+    assert (tmp_path / MANIFEST_PATH).read_bytes() == manifest_before, "a corrupt-overlay refusal must not rewrite the manifest"
 
 
 # ---------------------------------------------------------------------------

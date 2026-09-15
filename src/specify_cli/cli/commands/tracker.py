@@ -62,6 +62,7 @@ app.add_typer(sync_app, name="sync")
 def _print_json(payload: Any) -> None:
     typer.echo(json.dumps(payload, indent=2, sort_keys=True, default=str))
 
+
 def _echo_saas_sync_summary(label: str, payload: Mapping[str, Any]) -> None:
     """Render the SaaS sync envelope shared by ``sync pull``/``push``/``run``.
 
@@ -78,7 +79,6 @@ def _echo_saas_sync_summary(label: str, payload: Mapping[str, Any]) -> None:
     typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
     typer.echo(f"- failed: {summary.get('failed', 0)}")
     typer.echo(f"- skipped: {summary.get('skipped', 0)}")
-
 
 
 def _print_ticket_rows(rows: list[dict[str, Any]]) -> None:
@@ -393,9 +393,7 @@ def _doctrine_modes() -> tuple[str, ...]:
 #: unusable. These are the PRI-12/SaaS vocabulary already consumed by
 #: ``tracker/saas_service.py``'s stale-binding translation — reused here, not
 #: a second taxonomy.
-_BINDING_ERROR_CODES: frozenset[str] = frozenset(
-    {"binding_not_found", "mapping_disabled", "project_mismatch", "missing_routing_key"}
-)
+_BINDING_ERROR_CODES: frozenset[str] = frozenset({"binding_not_found", "mapping_disabled", "project_mismatch", "missing_routing_key"})
 
 #: The disabled-rollout / feature-unavailable family the live control plane
 #: emits when the tracker surface is not enabled for the team (the #4233

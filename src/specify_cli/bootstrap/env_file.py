@@ -184,8 +184,7 @@ def _read_tier(path: Path) -> dict[str, str]:
     # binding it to a constant).
     if parsed.pop("SPEC_KITTY_HOME", None) is not None:
         warnings.warn(
-            f"{path} defines SPEC_KITTY_HOME; ignoring that line "
-            "(the locator that finds this file cannot be redefined by it).",
+            f"{path} defines SPEC_KITTY_HOME; ignoring that line (the locator that finds this file cannot be redefined by it).",
             UserWarning,
             stacklevel=3,
         )

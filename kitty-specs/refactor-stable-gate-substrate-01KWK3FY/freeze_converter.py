@@ -89,9 +89,7 @@ def _sites_by_key(scan_fn: object) -> dict[tuple[str, int], str]:
     return out
 
 
-def _freeze_entry(
-    gate: str, entry: dict[str, object], rel_by_key: dict[tuple[str, int], str]
-) -> tuple[str, str]:
+def _freeze_entry(gate: str, entry: dict[str, object], rel_by_key: dict[tuple[str, int], str]) -> tuple[str, str]:
     """Return ``(file, token)`` for one entry, or raise :class:`FreezeAbort`."""
     qualname = entry.get("qualname")
     line = entry.get("line")
@@ -99,29 +97,18 @@ def _freeze_entry(
         raise FreezeAbort(f"{gate}: entry {entry!r} missing str qualname / int line")
     rel_path = rel_by_key.get((qualname, line))
     if rel_path is None:
-        raise FreezeAbort(
-            f"{gate}: seed ({qualname!r}, {line}) matches NO live call site "
-            "(unparseable file, drifted line, or renamed function) — cannot freeze"
-        )
+        raise FreezeAbort(f"{gate}: seed ({qualname!r}, {line}) matches NO live call site (unparseable file, drifted line, or renamed function) — cannot freeze")
     abs_path = _REPO_ROOT / rel_path
     try:
         derived_qualname, token = composite_key_from_file(abs_path, line)
     except (OSError, SyntaxError) as exc:  # unparseable / unreadable file
         raise FreezeAbort(f"{gate}: {rel_path}:{line} unreadable/unparseable: {exc}") from exc
     if derived_qualname == "<module>":
-        raise FreezeAbort(
-            f"{gate}: {rel_path}:{line} resolves to <module> scope — refusing to freeze "
-            "a module-scope seed (fail-closed)"
-        )
+        raise FreezeAbort(f"{gate}: {rel_path}:{line} resolves to <module> scope — refusing to freeze a module-scope seed (fail-closed)")
     if derived_qualname != qualname:
-        raise FreezeAbort(
-            f"{gate}: {rel_path}:{line} derived qualname {derived_qualname!r} != "
-            f"recorded {qualname!r} — seed drifted, refusing to freeze"
-        )
+        raise FreezeAbort(f"{gate}: {rel_path}:{line} derived qualname {derived_qualname!r} != recorded {qualname!r} — seed drifted, refusing to freeze")
     if not token.strip():
-        raise FreezeAbort(
-            f"{gate}: {rel_path}:{line} derived an EMPTY token — refusing to freeze"
-        )
+        raise FreezeAbort(f"{gate}: {rel_path}:{line} derived an EMPTY token — refusing to freeze")
     return rel_path, token
 
 

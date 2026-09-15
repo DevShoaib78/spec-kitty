@@ -431,19 +431,32 @@ class StreamState:
 
         presence = tuple(
             PresenceView(
-                session_ref=v["session_ref"], user=v["user"], repo=v["repo"],
-                branch=v["branch"], path=v["path"], kind=v["kind"], expires_at=v["expires_at"],
+                session_ref=v["session_ref"],
+                user=v["user"],
+                repo=v["repo"],
+                branch=v["branch"],
+                path=v["path"],
+                kind=v["kind"],
+                expires_at=v["expires_at"],
             )
             for v in self._presence.values()
         )
         focus = tuple(
             FocusView(
-                session_ref=v["session_ref"], focus_ref=v["focus_ref"], state=v["state"],
-                user=v["user"], repo=v["repo"], branch=v["branch"], expires_at=v["expires_at"],
+                session_ref=v["session_ref"],
+                focus_ref=v["focus_ref"],
+                state=v["state"],
+                user=v["user"],
+                repo=v["repo"],
+                branch=v["branch"],
+                expires_at=v["expires_at"],
             )
             for v in self._focus.values()
         )
         return TeamSnapshot(
-            epoch=self._epoch, presence=presence, focus=focus,
-            reset_count=self._reset_count, last_reset_reason=self._last_reset_reason,
+            epoch=self._epoch,
+            presence=presence,
+            focus=focus,
+            reset_count=self._reset_count,
+            last_reset_reason=self._last_reset_reason,
         )

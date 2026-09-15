@@ -67,9 +67,7 @@ def _python_interview() -> CharterInterview:
     )
 
 
-def test_python_styleguide_reference_reads_from_packs_built_in(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_python_styleguide_reference_reads_from_packs_built_in(tmp_path: Path, monkeypatch) -> None:
     """The Python styleguide reference resolves from packs/built-in, not src/doctrine."""
     packs_root = tmp_path / "packs"
     styleguide_path = packs_root / "built-in" / "styleguides" / "python-implementation.styleguide.yaml"
@@ -85,10 +83,7 @@ def test_python_styleguide_reference_reads_from_packs_built_in(
     # tree — so this test can only pass by reading the relocated home. If the
     # emptied tree ever regains this file the guard would weaken silently.
     legacy = resolve_doctrine_root() / "styleguides" / "python-implementation.styleguide.yaml"
-    assert not legacy.exists(), (
-        "The src/doctrine styleguide tree unexpectedly holds the relocated file; "
-        "this regression guard is no longer discriminating."
-    )
+    assert not legacy.exists(), "The src/doctrine styleguide tree unexpectedly holds the relocated file; this regression guard is no longer discriminating."
 
     monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
 
@@ -102,15 +97,12 @@ def test_python_styleguide_reference_reads_from_packs_built_in(
 
     styleguides = [ref for ref in references if ref.kind == "styleguide"]
     assert [ref.id for ref in styleguides] == ["STYLEGUIDE:python-implementation"], (
-        "The Python styleguide reference did not materialize from packs/built-in — "
-        "the built-in styleguide read regressed to the emptied src/doctrine tree."
+        "The Python styleguide reference did not materialize from packs/built-in — the built-in styleguide read regressed to the emptied src/doctrine tree."
     )
     assert styleguides[0].title == "Python Implementation Styleguide"
 
 
-def test_non_python_interview_emits_no_styleguide_reference(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_non_python_interview_emits_no_styleguide_reference(tmp_path: Path, monkeypatch) -> None:
     """Guard against a false positive: without a Python hint, no styleguide is read."""
     packs_root = tmp_path / "packs"
     styleguide_path = packs_root / "built-in" / "styleguides" / "python-implementation.styleguide.yaml"

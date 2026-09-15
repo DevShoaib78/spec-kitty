@@ -205,10 +205,7 @@ def test_dashboard_command_persists_passed_advisory_warning(
     from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     dashboard_mod = importlib.import_module("specify_cli.cli.commands.dashboard")
-    warning = (
-        "a legacy charter.md-only bundle was detected; run "
-        "`spec-kitty charter generate --no-from-interview`"
-    )
+    warning = "a legacy charter.md-only bundle was detected; run `spec-kitty charter generate --no-from-interview`"
     monkeypatch.setattr(dashboard_mod, "get_project_root_or_exit", lambda: tmp_path)
     monkeypatch.setattr(
         dashboard_mod,

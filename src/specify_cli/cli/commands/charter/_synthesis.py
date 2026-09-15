@@ -3,6 +3,7 @@
 Lifted from the legacy ``charter.py`` during the WP06 MS-1 split. Module is
 behaviour-preserving; only import paths changed.
 """
+
 from __future__ import annotations
 
 import json
@@ -68,10 +69,7 @@ def _build_synthesis_request(
     answers_path = _charter_pkg._interview_path(repo_root)
     interview_data = read_interview_answers(answers_path)
     if interview_data is None:
-        raise TaskCliError(
-            "No interview answers found. "
-            "Run 'spec-kitty charter interview' first."
-        )
+        raise TaskCliError("No interview answers found. Run 'spec-kitty charter interview' first.")
 
     # FR-001/FR-002 (WP02): the project-graph derivation reads
     # ``config.activated_*``, not ``answers.selected_*`` -- ``answers.yaml``
@@ -100,9 +98,7 @@ def _build_synthesis_request(
     # pre-#2526 behavior where this field was sourced from
     # `answers.selected_directives` and defaulted to `[]` on a fresh interview.
     pack_context = PackContext.from_config(repo_root)
-    directives_for_synthesis: list[str] = (
-        [] if pack_context.activated_directives is None else config_roots.directives
-    )
+    directives_for_synthesis: list[str] = [] if pack_context.activated_directives is None else config_roots.directives
 
     # Build a minimal interview snapshot, config-activated selections + answers
     interview_snapshot: dict[str, Any] = {
@@ -130,10 +126,12 @@ def _build_synthesis_request(
         # ``DRGGraph`` downstream. An ``id`` key rode along here for a while --
         # redundant with the URN suffix, read by nothing, and silently dropped
         # at validation until WP04 made ``DRGNode`` forbid extras (FR-004).
-        drg_nodes.append({
-            "urn": f"directive:{directive_id}",
-            "kind": "directive",
-        })
+        drg_nodes.append(
+            {
+                "urn": f"directive:{directive_id}",
+                "kind": "directive",
+            }
+        )
     drg_snapshot: dict[str, Any] = {
         "nodes": drg_nodes,
         "edges": [],
@@ -586,10 +584,7 @@ def _has_generated_artifacts(repo_root: Path) -> bool:
 
 def _print_synthesis_commit_reminder() -> None:
     console.print("[yellow]Synthesis artifacts written; commit provenance before continuing:[/yellow]")
-    console.print(
-        "  git add .kittify/charter/synthesis-manifest.yaml "
-        ".kittify/charter/provenance/ .kittify/doctrine/"
-    )
+    console.print("  git add .kittify/charter/synthesis-manifest.yaml .kittify/charter/provenance/ .kittify/doctrine/")
     console.print("  git commit -m 'chore: charter synthesis artifacts'")
 
 
@@ -766,24 +761,30 @@ def _emit_dry_run_report(
     conflict_dicts = [_conflict_to_dict(c) for c in delta.conflicts]
 
     if json_output:
-        print(json.dumps({
-            # Contracted fields (FR-002):
-            "result": "dry_run",
-            "adapter": {
-                "id": getattr(syn_adapter, "id", adapter_name),
-                "version": getattr(syn_adapter, "version", "unknown"),
-            },
-            "written_artifacts": written_artifacts_dr,
-            "warnings": warnings_collected,
-            # Legacy compatibility fields (data-model.md §E-1):
-            "staged_artifacts": staged_files,
-            "artifact_count": len(staged_files),
-            "validated": True,
-            # FR-010: reconciliation delta preview -- what --prune would
-            # remove; empty when there is no divergence.
-            "planned_deletes": planned_deletes,
-            "conflicts": conflict_dicts,
-        }, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    # Contracted fields (FR-002):
+                    "result": "dry_run",
+                    "adapter": {
+                        "id": getattr(syn_adapter, "id", adapter_name),
+                        "version": getattr(syn_adapter, "version", "unknown"),
+                    },
+                    "written_artifacts": written_artifacts_dr,
+                    "warnings": warnings_collected,
+                    # Legacy compatibility fields (data-model.md §E-1):
+                    "staged_artifacts": staged_files,
+                    "artifact_count": len(staged_files),
+                    "validated": True,
+                    # FR-010: reconciliation delta preview -- what --prune would
+                    # remove; empty when there is no divergence.
+                    "planned_deletes": planned_deletes,
+                    "conflicts": conflict_dicts,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
         mark_invocation_succeeded()
         return
 
@@ -822,22 +823,25 @@ def _emit_orphan_refusal(
     lines = [_orphan_ref_to_line(ref) for ref in orphaned]
 
     if json_output:
-        print(json.dumps({
-            "result": "failure",
-            "adapter": {"id": adapter_name, "version": "unknown"},
-            "written_artifacts": [],
-            "warnings": warnings_collected + lines,
-        }, indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                {
+                    "result": "failure",
+                    "adapter": {"id": adapter_name, "version": "unknown"},
+                    "written_artifacts": [],
+                    "warnings": warnings_collected + lines,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
     else:
         err_console.print(
-            "[red]Refused:[/red] this run preserved orphaned content instead of dropping it; "
-            "the following references are dangling (backing artifact deleted):"
+            "[red]Refused:[/red] this run preserved orphaned content instead of dropping it; the following references are dangling (backing artifact deleted):"
         )
         for line in lines:
             err_console.print(line)
-        err_console.print(
-            "[yellow]Re-run with `--prune` to remove it, or restore the backing artifact.[/yellow]"
-        )
+        err_console.print("[yellow]Re-run with `--prune` to remove it, or restore the backing artifact.[/yellow]")
     raise typer.Exit(code=1)
 
 

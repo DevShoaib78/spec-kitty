@@ -33,6 +33,7 @@ AND lists all currently available workflows.  Callers MUST NOT silently
 fall back to ``software-dev-default``; fall-back logic belongs in the
 caller (currently WP11's ``planner.plan_next``).
 """
+
 from __future__ import annotations
 
 import re
@@ -131,9 +132,7 @@ def resolve_workflow_path(workflow_id: str, project_root: Path | None = None) ->
 
     available = list_available_workflows(project_root=project_root)
     raise UnknownWorkflowError(
-        f"Unknown workflow_id={workflow_id!r}. "
-        f"Available: {available}. "
-        f"Searched: {[str(p) for p in _candidate_paths(workflow_id, project_root)]}."
+        f"Unknown workflow_id={workflow_id!r}. Available: {available}. Searched: {[str(p) for p in _candidate_paths(workflow_id, project_root)]}."
     )
 
 
@@ -146,10 +145,7 @@ def load_workflow_file(
     workflow = WorkflowSequence.model_validate(raw)
     validate_workflow_id(workflow.workflow_id)
     if requested_workflow_id is not None and workflow.workflow_id != requested_workflow_id:
-        raise UnknownWorkflowError(
-            f"Workflow file {path} declares workflow_id={workflow.workflow_id!r} "
-            f"but was requested as {requested_workflow_id!r}."
-        )
+        raise UnknownWorkflowError(f"Workflow file {path} declares workflow_id={workflow.workflow_id!r} but was requested as {requested_workflow_id!r}.")
     return workflow
 
 

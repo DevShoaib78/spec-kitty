@@ -11,6 +11,7 @@ Run it at review time:
 
 Exit 0 = all assertions pass.  Non-zero + printed failures = needs attention.
 """
+
 from __future__ import annotations
 
 import sys
@@ -33,14 +34,7 @@ except ImportError:
 # Target file
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).parent.parent.parent
-_STYLEGUIDE = (
-    _REPO_ROOT
-    / "src"
-    / "doctrine"
-    / "styleguides"
-    / "built-in"
-    / "testing-principles.styleguide.yaml"
-)
+_STYLEGUIDE = _REPO_ROOT / "src" / "doctrine" / "styleguides" / "built-in" / "testing-principles.styleguide.yaml"
 
 # ---------------------------------------------------------------------------
 # Snapshot of pre-existing principle strings — additive-only guard.
@@ -155,9 +149,7 @@ def check_principles(data: dict, failures: list[str]) -> None:  # type: ignore[t
 
     # (a) Each D7 topic is covered by at least one new principle.
     for topic_name, keywords in _D7_TOPICS:
-        covered = any(
-            any(kw.lower() in p.lower() for kw in keywords) for p in new_principles
-        )
+        covered = any(any(kw.lower() in p.lower() for kw in keywords) for p in new_principles)
         _check(covered, f"D7 topic '{topic_name}' not covered by any new principle.", failures)
 
 
@@ -253,12 +245,8 @@ def main() -> int:
 
     pre_p = {e.strip() for e in _PRE_EXISTING_PRINCIPLES}
     new_principle_count = sum(1 for p in principles if p.strip() not in pre_p)
-    new_pattern_count = sum(
-        1 for p in patterns if p.get("name", "") not in _PRE_EXISTING_PATTERN_NAMES
-    )
-    new_ap_count = sum(
-        1 for ap in anti_patterns if ap.get("name", "") not in _PRE_EXISTING_ANTI_PATTERN_NAMES
-    )
+    new_pattern_count = sum(1 for p in patterns if p.get("name", "") not in _PRE_EXISTING_PATTERN_NAMES)
+    new_ap_count = sum(1 for ap in anti_patterns if ap.get("name", "") not in _PRE_EXISTING_ANTI_PATTERN_NAMES)
 
     print("=" * 60)
     print("WP04 doctrine content check")

@@ -128,18 +128,14 @@ def test_get_dependents_surfaces_direct_dependents() -> None:
 
 def test_check_dependent_warnings_skips_non_for_review() -> None:
     """No graph build, no resolution when the target lane is not for_review."""
-    with patch(
-        "specify_cli.cli.commands.agent.tasks_dependency_graph.build_dependency_graph"
-    ) as build_mock:
+    with patch("specify_cli.cli.commands.agent.tasks_dependency_graph.build_dependency_graph") as build_mock:
         _check_dependent_warnings(Path("/repo"), MISSION_SLUG, "WP01", Lane.IN_PROGRESS, json_mode=False)
     build_mock.assert_not_called()
 
 
 def test_check_dependent_warnings_skips_json_mode() -> None:
     """JSON mode suppresses the warning path entirely."""
-    with patch(
-        "specify_cli.cli.commands.agent.tasks_dependency_graph.build_dependency_graph"
-    ) as build_mock:
+    with patch("specify_cli.cli.commands.agent.tasks_dependency_graph.build_dependency_graph") as build_mock:
         _check_dependent_warnings(Path("/repo"), MISSION_SLUG, "WP01", Lane.FOR_REVIEW, json_mode=True)
     build_mock.assert_not_called()
 

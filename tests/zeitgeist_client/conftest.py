@@ -63,9 +63,7 @@ def instead_of_rewrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
 
 
 @pytest.fixture()
-def no_git_ancestry_inside_tmp_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def no_git_ancestry_inside_tmp_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep an unrelated ancestor checkout's identity from leaking into
     tests that build a repo-less directory under ``tmp_path`` and expect
     resolution to fail closed with ``UnverifiedRepositoryIdentity``.
@@ -84,12 +82,8 @@ def no_git_ancestry_inside_tmp_path(
     fixtures) is unaffected.
     """
     boundary = os.path.abspath(str(tmp_path))
-    real_git_dir_from_filesystem: Callable[[str], str] = (
-        repo_identity._git_dir_from_filesystem
-    )
-    real_deadline_run: Callable[[repo_identity.Deadline, list[str], str], str] = (
-        repo_identity.Deadline.run
-    )
+    real_git_dir_from_filesystem: Callable[[str], str] = repo_identity._git_dir_from_filesystem
+    real_deadline_run: Callable[[repo_identity.Deadline, list[str], str], str] = repo_identity.Deadline.run
 
     def _inside_boundary(path: str) -> bool:
         candidate = os.path.abspath(path)
@@ -101,17 +95,13 @@ def no_git_ancestry_inside_tmp_path(
             return ""
         return git_dir
 
-    def _bounded_deadline_run(
-        self: repo_identity.Deadline, args: list[str], cwd: str
-    ) -> str:
+    def _bounded_deadline_run(self: repo_identity.Deadline, args: list[str], cwd: str) -> str:
         git_dir = real_git_dir_from_filesystem(os.path.realpath(cwd))
         if git_dir and not _inside_boundary(git_dir):
             return ""
         return real_deadline_run(self, args, cwd)
 
-    monkeypatch.setattr(
-        repo_identity, "_git_dir_from_filesystem", _bounded_git_dir_from_filesystem
-    )
+    monkeypatch.setattr(repo_identity, "_git_dir_from_filesystem", _bounded_git_dir_from_filesystem)
     monkeypatch.setattr(repo_identity.Deadline, "run", _bounded_deadline_run)
 
 

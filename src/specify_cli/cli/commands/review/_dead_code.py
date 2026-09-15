@@ -12,9 +12,7 @@ from rich.console import Console
 from ._diagnostics import MissionReviewDiagnostic
 
 _IDENTIFIER_CHARCLASS = r"\w"
-_UNDETERMINABLE_REMEDIATION = (
-    "Verify the baseline commit and Git repository, then rerun `spec-kitty review`."
-)
+_UNDETERMINABLE_REMEDIATION = "Verify the baseline commit and Git repository, then rerun `spec-kitty review`."
 _EXCLUDED_CORPUS_PARTS = frozenset(
     {
         ".git",
@@ -67,11 +65,7 @@ def _extract_added_symbols(
     for line in diff_output.splitlines():
         if line.startswith("+++ b/"):
             current_file = line[6:]
-        elif (
-            current_file in supported_paths
-            and line.startswith("+")
-            and not line.startswith("+++")
-        ):
+        elif current_file in supported_paths and line.startswith("+") and not line.startswith("+++"):
             match = re.match(
                 rf"^\+\s*(def|class)\s+([A-Za-z]{_IDENTIFIER_CHARCLASS}*)\s*[\(:]",
                 line,
@@ -95,14 +89,8 @@ def _discover_changed_symbols(
     changed_paths = tuple(path for path in name_result.stdout.splitlines() if path)
     if not changed_paths:
         return _Discovery((), (), "git diff reported no changed files")
-    changed_python_paths = tuple(
-        path for path in changed_paths if path.endswith(".py")
-    )
-    supported_paths = tuple(
-        path
-        for path in changed_python_paths
-        if path.startswith("src/") or "test" not in path
-    )
+    changed_python_paths = tuple(path for path in changed_paths if path.endswith(".py"))
+    supported_paths = tuple(path for path in changed_python_paths if path.startswith("src/") or "test" not in path)
     if not supported_paths:
         return _Discovery(
             changed_paths,
@@ -126,25 +114,13 @@ def _load_python_corpus(
     changed_paths: tuple[str, ...],
 ) -> tuple[tuple[tuple[str, str], ...], str | None]:
     """Load the complete Python corpus, including untracked files, deterministically."""
-    changed_python_paths = tuple(
-        path for path in changed_paths if path.endswith(".py")
-    )
-    search_root = (
-        repo_root / "src"
-        if changed_python_paths
-        and all(path.startswith("src/") for path in changed_python_paths)
-        else repo_root
-    )
+    changed_python_paths = tuple(path for path in changed_paths if path.endswith(".py"))
+    search_root = repo_root / "src" if changed_python_paths and all(path.startswith("src/") for path in changed_python_paths) else repo_root
     try:
         paths = sorted(
             path
             for path in search_root.rglob("*.py")
-            if path.is_file()
-            and not path.is_symlink()
-            and not (
-                _EXCLUDED_CORPUS_PARTS
-                & set(path.relative_to(repo_root).parts)
-            )
+            if path.is_file() and not path.is_symlink() and not (_EXCLUDED_CORPUS_PARTS & set(path.relative_to(repo_root).parts))
         )
     except OSError as exc:
         return (), f"could not enumerate Python source: {exc}"
@@ -169,11 +145,7 @@ def _unreferenced_symbols(
     """Return symbols with no caller, preserving the legacy path filters."""
     dead_symbols: list[dict[str, str]] = []
     for symbol, defined_in in symbols:
-        callers = [
-            path
-            for path, source in corpus
-            if symbol in source and path != defined_in and "test" not in path
-        ]
+        callers = [path for path, source in corpus if symbol in source and path != defined_in and "test" not in path]
         if not callers:
             dead_symbols.append({"symbol": symbol, "file": defined_in})
     return dead_symbols
@@ -186,9 +158,7 @@ def _append_undeterminable(
     findings: list[dict[str, str]],
 ) -> None:
     diagnostic_code = MissionReviewDiagnostic.DEAD_CODE_UNDETERMINABLE
-    console.print(
-        f"  [red]✗[/red]  Dead-code scan: undeterminable ({diagnostic_code})"
-    )
+    console.print(f"  [red]✗[/red]  Dead-code scan: undeterminable ({diagnostic_code})")
     console.print(f"       reason: {reason}")
     console.print(f"       remediation: {_UNDETERMINABLE_REMEDIATION}")
     findings.append(
@@ -209,21 +179,13 @@ def _handle_missing_baseline(
     mission_slug: str | None,
 ) -> None:
     if mission_id:
-        remediation = (
-            "Run `spec-kitty merge` to bake baseline_merge_commit into meta.json, "
-            "or rerun review with `--mode post-merge` after merge."
-        )
-        console.print(
-            f"  [red]✗[/red]  Dead-code scan: missing baseline_merge_commit "
-            f"({MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE})"
-        )
+        remediation = "Run `spec-kitty merge` to bake baseline_merge_commit into meta.json, or rerun review with `--mode post-merge` after merge."
+        console.print(f"  [red]✗[/red]  Dead-code scan: missing baseline_merge_commit ({MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE})")
         console.print(f"       remediation: {remediation}")
         findings.append(
             {
                 "type": "dead_code_baseline_missing",
-                "diagnostic_code": str(
-                    MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE
-                ),
+                "diagnostic_code": str(MissionReviewDiagnostic.LIGHTWEIGHT_REVIEW_MISSING_BASELINE),
                 "mission_id": mission_id,
                 "mission_slug": mission_slug or "",
                 "remediation": remediation,
@@ -281,13 +243,8 @@ def scan_dead_code(
         findings.append({"type": "dead_code", **dead_symbol})
 
     if dead_symbols:
-        console.print(
-            f"  [red]✗[/red]  Dead-code scan: "
-            f"{len(dead_symbols)} unreferenced public symbol(s)"
-        )
+        console.print(f"  [red]✗[/red]  Dead-code scan: {len(dead_symbols)} unreferenced public symbol(s)")
         for dead_symbol in dead_symbols:
             console.print(f"       {dead_symbol['file']}  {dead_symbol['symbol']}")
         return
-    console.print(
-        "  [green]✓[/green]  Dead-code scan: 0 unreferenced public symbols"
-    )
+    console.print("  [green]✓[/green]  Dead-code scan: 0 unreferenced public symbols")

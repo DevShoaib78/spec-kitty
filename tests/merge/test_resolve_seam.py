@@ -51,9 +51,7 @@ def test_key_candidates_ulid_before_slug(tmp_path: Path) -> None:
     # `placement_seam(...).read_dir(MissionArtifactKind.PRIMARY_METADATA)`
     # (resolve.py:105-106). Patch the seam entry point the module calls now.
     with (
-        patch.object(
-            resolve, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=feature_dir))
-        ),
+        patch.object(resolve, "placement_seam", return_value=MagicMock(read_dir=MagicMock(return_value=feature_dir))),
         patch.object(resolve, "get_main_repo_root", return_value=tmp_path),
         patch.object(resolve, "resolve_mission_identity", return_value=_Identity()),
     ):
@@ -111,8 +109,12 @@ def test_load_or_create_returns_existing_canonical() -> None:
     st = _state(mid="01CANON")
     with patch.object(resolve, "load_state", return_value=st):
         result, existed = resolve._load_or_create_merge_state(
-            main_repo=Path("/r"), mission_slug="m", canonical_id="01CANON",
-            target_branch="main", wp_order=["WP01"], push_requested=False,
+            main_repo=Path("/r"),
+            mission_slug="m",
+            canonical_id="01CANON",
+            target_branch="main",
+            wp_order=["WP01"],
+            push_requested=False,
         )
     assert result is st and existed is True
 
@@ -125,8 +127,12 @@ def test_load_or_create_creates_new_when_absent() -> None:
         patch.object(resolve, "save_state", side_effect=lambda s, _r: saved.append(s)),
     ):
         result, existed = resolve._load_or_create_merge_state(
-            main_repo=Path("/r"), mission_slug="m", canonical_id="01NEW",
-            target_branch="main", wp_order=["WP01"], push_requested=True,
+            main_repo=Path("/r"),
+            mission_slug="m",
+            canonical_id="01NEW",
+            target_branch="main",
+            wp_order=["WP01"],
+            push_requested=True,
         )
     assert existed is False
     assert result.mission_id == "01NEW"
@@ -144,8 +150,12 @@ def test_load_or_create_migrates_legacy_state() -> None:
         patch.object(resolve, "clear_state", side_effect=lambda _r, k: cleared.append(k)),
     ):
         result, existed = resolve._load_or_create_merge_state(
-            main_repo=Path("/r"), mission_slug="m", canonical_id="01CANON",
-            target_branch="main", wp_order=["WP01"], push_requested=False,
+            main_repo=Path("/r"),
+            mission_slug="m",
+            canonical_id="01CANON",
+            target_branch="main",
+            wp_order=["WP01"],
+            push_requested=False,
         )
     assert existed is True
     assert result.mission_id == "01CANON"
@@ -192,9 +202,7 @@ def test_cleanup_workspaces_dedups_keys(tmp_path: Path) -> None:
         patch.object(resolve, "_merge_state_key_candidates", return_value=["01ULID", "m"]),
         patch.object(resolve, "cleanup_merge_workspace", side_effect=_record),
     ):
-        resolve._cleanup_merge_workspaces_for_state(
-            tmp_path, mission_slug="m", state_entry=("01ULID", st)
-        )
+        resolve._cleanup_merge_workspaces_for_state(tmp_path, mission_slug="m", state_entry=("01ULID", st))
     # Deduped, falsy keys dropped, order preserved.
     assert cleaned == ["01ULID", "m"]
 

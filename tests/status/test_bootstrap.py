@@ -27,6 +27,7 @@ from specify_cli.status.models import StatusEvent
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+
 def _write_wp_file(tasks_dir: Path, wp_id: str, title: str = "Test WP") -> Path:
     """Create a minimal WP markdown file with valid frontmatter."""
     wp_file = tasks_dir / f"{wp_id}.md"
@@ -74,6 +75,7 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def _disable_saas_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
     """Bootstrap tests assert local state seeding, not SaaS sync behavior."""
@@ -87,9 +89,7 @@ class TestBootstrapCoordinationBranchPersistence:
     persist real lane-state seed events that the lane-state readers can see,
     not silently report success while persisting nothing."""
 
-    def test_coordination_branch_persists_seed_events(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_coordination_branch_persists_seed_events(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         repo = tmp_path / "repo"
         repo.mkdir()
         _git(repo, "init", "-q", "-b", "main")
@@ -131,14 +131,9 @@ class TestBootstrapCoordinationBranchPersistence:
             read_events_transactional,
         )
 
-        events = read_events_transactional(
-            feature_dir=feature_dir, mission_slug=mission_slug
-        )
+        events = read_events_transactional(feature_dir=feature_dir, mission_slug=mission_slug)
         seeded = {e.wp_id: str(e.to_lane) for e in events if e.wp_id}
-        assert seeded == {"WP01": "planned", "WP02": "planned"}, (
-            f"bootstrap reported {result.newly_seeded} seeded but the "
-            f"transactional read target shows {seeded}"
-        )
+        assert seeded == {"WP01": "planned", "WP02": "planned"}, f"bootstrap reported {result.newly_seeded} seeded but the transactional read target shows {seeded}"
 
 
 class TestBootstrapSeedsUninitialized:
@@ -460,7 +455,7 @@ class TestBootstrapMalformedFrontmatter:
         # WP with empty work_package_id
         bad_wp = tasks_dir / "WP02.md"
         bad_wp.write_text(
-            "---\nwork_package_id: \"\"\ntitle: Empty ID\n---\n\n# Bad\n",
+            '---\nwork_package_id: ""\ntitle: Empty ID\n---\n\n# Bad\n',
             encoding="utf-8",
         )
 

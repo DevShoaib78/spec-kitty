@@ -145,10 +145,7 @@ class NotFound(OutboxError):
 
 class Expired(OutboxError):
     def __init__(self, item_id: str) -> None:
-        super().__init__(
-            f"item {item_id!r} expired before a human disposition arrived; "
-            "fails closed, never approvable after its TTL — default-deny"
-        )
+        super().__init__(f"item {item_id!r} expired before a human disposition arrived; fails closed, never approvable after its TTL — default-deny")
         self.item_id = item_id
 
 

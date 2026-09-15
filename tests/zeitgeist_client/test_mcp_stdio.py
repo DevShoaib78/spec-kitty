@@ -441,9 +441,7 @@ async def test_run_stdio_when_off_is_one_stderr_line_and_a_clean_exit(
     assert rest.strip() == ""
 
 
-async def test_teammates_agent_receives_the_wp_move_an_opted_out_agents_receives_nothing(
-    state_root: Path, managed_stream_double
-) -> None:
+async def test_teammates_agent_receives_the_wp_move_an_opted_out_agents_receives_nothing(state_root: Path, managed_stream_double) -> None:
     """The acceptance pair from #190, on the wire: the same broadcast moment,
     two developers — the teammate's default-configured server delivers the WP
     move, the opted-out developer's server starts at all."""
@@ -456,11 +454,7 @@ async def test_teammates_agent_receives_the_wp_move_an_opted_out_agents_receives
         result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
     structured = result.structuredContent
     assert structured is not None
-    moments_seen = [
-        frame["payload"]["kind"]
-        for frame in structured["frames"]
-        if frame["frame_type"] == "event"
-    ]
+    moments_seen = [frame["payload"]["kind"] for frame in structured["frames"] if frame["frame_type"] == "event"]
     assert moments_seen == ["WPStatusChanged"]
 
     with pytest.raises(moments.MomentsDisabled):
@@ -472,7 +466,7 @@ async def test_mine_mode_surfaces_own_missions_and_drops_foreign_ones(
 ) -> None:
     _local_checkout_missions(tmp_path, monkeypatch, "034-demo")
     _checkout(managed_stream_double.url)
-    managed_stream_double.push_frame(_status_moment(seq=1))                       # own mission
+    managed_stream_double.push_frame(_status_moment(seq=1))  # own mission
     managed_stream_double.push_frame(_status_moment(seq=2, mission="999-theirs"))  # someone else's
     managed_stream_double.close_stream()
 
@@ -485,9 +479,7 @@ async def test_mine_mode_surfaces_own_missions_and_drops_foreign_ones(
     assert slugs == ["034-demo"]  # the moment arrived with its own mission named
 
 
-async def test_repo_filter_drops_other_repos_moments_without_opening_a_connection(
-    state_root: Path, managed_stream_double
-) -> None:
+async def test_repo_filter_drops_other_repos_moments_without_opening_a_connection(state_root: Path, managed_stream_double) -> None:
     _checkout(managed_stream_double.url, repo="github.com/acme/widget")
     server = mcp_stdio.build_server(_settings(repos=("github.com/acme/widget",)))
     async with create_connected_server_and_client_session(server) as client:

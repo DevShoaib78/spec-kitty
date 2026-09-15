@@ -39,6 +39,8 @@ def _committed_result(ref: str = "main") -> CommitRouterResult:
 def _unchanged_result(ref: str = "main") -> CommitRouterResult:
     """A router result that maps to the old falsy ``safe_commit`` return (WP07)."""
     return CommitRouterResult(status="unchanged", placement_ref=ref)
+
+
 from specify_cli.status.locking import (
     FeatureStatusLockTimeoutError,
     feature_status_lock,
@@ -81,10 +83,7 @@ def _append_status_event(
 def _write_feature_tasks_md(feature_dir: Path) -> Path:
     tasks_md = feature_dir / "tasks.md"
     tasks_md.write_text(
-        "# Tasks\n\n"
-        "## WP01 Test\n"
-        "- [ ] T001 First task\n"
-        "- [ ] T002 Second task\n",
+        "# Tasks\n\n## WP01 Test\n- [ ] T001 First task\n- [ ] T002 Second task\n",
         encoding="utf-8",
     )
     return tasks_md
@@ -193,9 +192,7 @@ class TestFeatureStatusLock:
 
         assert lock_path == repo / ".git" / "spec-kitty-locks" / "017-test-feature.status.lock"
 
-    def test_lock_falls_back_to_dot_git_when_git_topology_probe_fails(
-        self, tmp_path: Path
-    ) -> None:
+    def test_lock_falls_back_to_dot_git_when_git_topology_probe_fails(self, tmp_path: Path) -> None:
         """A failed git-common-dir probe on a checkout falls back to repo/.git.
 
         #3773 item 4 converged this resolver onto the canonical
@@ -218,9 +215,7 @@ class TestFeatureStatusLock:
 
         assert lock_path == repo / ".git" / "spec-kitty-locks" / "017-test-feature.status.lock"
 
-    def test_lock_on_non_git_tree_never_mints_a_dot_git_directory(
-        self, tmp_path: Path
-    ) -> None:
+    def test_lock_on_non_git_tree_never_mints_a_dot_git_directory(self, tmp_path: Path) -> None:
         """A genuinely non-git tree locks under ``.kittify`` (fsm-write-path-integrity WP01).
 
         Minting ``repo/.git/`` in a non-git tree turned it into a bogus repo
@@ -546,10 +541,7 @@ Test content.
         assert payload["result"] == "success"
 
         assert wp_path.read_bytes() == wp_before
-        assert any(
-            event.wp_id == "WP01" and event.to_lane == Lane.FOR_REVIEW
-            for event in read_events(feature_dir)
-        )
+        assert any(event.wp_id == "WP01" and event.to_lane == Lane.FOR_REVIEW for event in read_events(feature_dir))
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
@@ -660,11 +652,7 @@ Test content.
         assert snapshot["shell_pid"] == 4242
         assert wp_path.read_bytes() == wp_before
         commit_mock.assert_not_called()
-        assert not any(
-            "Committed status change" in str(call.args[0])
-            for call in mock_print.call_args_list
-            if call.args
-        )
+        assert not any("Committed status change" in str(call.args[0]) for call in mock_print.call_args_list if call.args)
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
@@ -690,11 +678,7 @@ Test content.
 
         assert result.exit_code == 0, result.stdout
         commit_mock.assert_not_called()
-        assert not any(
-            "auto-commit" in str(call.args[0])
-            for call in mock_print.call_args_list
-            if call.args
-        )
+        assert not any("auto-commit" in str(call.args[0]) for call in mock_print.call_args_list if call.args)
 
 
 class TestMarkStatusAtomicCommit:
@@ -791,11 +775,7 @@ class TestMarkStatusAtomicCommit:
         assert "- [ ] T001 First task" in content
         assert "- [ ] T002 Second task" in content
         commit_mock.assert_not_called()
-        assert any(
-            "Not found: T999" in str(call.args[0])
-            for call in mock_print.call_args_list
-            if call.args
-        )
+        assert any("Not found: T999" in str(call.args[0]) for call in mock_print.call_args_list if call.args)
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")

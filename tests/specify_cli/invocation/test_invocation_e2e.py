@@ -296,9 +296,7 @@ def test_without_a_transport_only_local_events_are_written(tmp_path: Path) -> No
 
     from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH
 
-    assert not (project / PROPAGATION_ERRORS_PATH).exists(), (
-        "transport-less propagation is not an error and must not be logged as one"
-    )
+    assert not (project / PROPAGATION_ERRORS_PATH).exists(), "transport-less propagation is not an error and must not be logged as one"
 
 
 # ===========================================================================

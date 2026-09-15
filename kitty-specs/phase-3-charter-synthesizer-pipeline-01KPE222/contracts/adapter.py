@@ -107,9 +107,7 @@ class BatchCapableSynthesisAdapter(SynthesisAdapter, Protocol):
     method. This stub exists for documentation / static-analysis aid only.
     """
 
-    def generate_batch(
-        self, requests: Sequence[SynthesisRequest]
-    ) -> Sequence[AdapterOutput]:
+    def generate_batch(self, requests: Sequence[SynthesisRequest]) -> Sequence[AdapterOutput]:
         """
         Produce outputs for a batch of requests. Returned sequence MUST be the
         same length as the input sequence and element-aligned. If an adapter
@@ -138,7 +136,4 @@ class FixtureAdapterMissingError(Exception):
     inputs_hash: str
 
     def __str__(self) -> str:
-        return (
-            f"no fixture found for {self.kind}:{self.slug} "
-            f"(inputs_hash={self.inputs_hash}); expected at {self.expected_path}"
-        )
+        return f"no fixture found for {self.kind}:{self.slug} (inputs_hash={self.inputs_hash}); expected at {self.expected_path}"

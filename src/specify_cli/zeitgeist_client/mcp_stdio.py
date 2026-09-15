@@ -196,9 +196,7 @@ def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
             # this server opens any connection for them — said plainly, never
             # dressed up as an ordinary empty stream.
             return {"repo": key, "frames": [], "withheld_by": "repos_filter"}
-        frames = _agent_frames(
-            subscription.watch(key, timeout_s=timeout_s, max_frames=max_frames, frame_filter=predicate)
-        )
+        frames = _agent_frames(subscription.watch(key, timeout_s=timeout_s, max_frames=max_frames, frame_filter=predicate))
         surfaced: list[dict[str, Any]] = []
         for frame in frames:
             # The cap counts EVENT frames only: presence/focus are liveness,

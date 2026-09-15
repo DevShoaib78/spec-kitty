@@ -1,4 +1,5 @@
 """``spec-kitty charter generate`` command + git-auto-track helpers (WP06 split)."""
+
 from __future__ import annotations
 
 import json
@@ -99,10 +100,7 @@ def _stage_charter_files(repo_root: Path, files: list[Path]) -> None:
         )
         if result.returncode != 0:
             detail = (result.stderr or result.stdout or "").strip()
-            raise RuntimeError(
-                f"Failed to stage charter file {rel}. "
-                f"{detail or 'git add returned a non-zero exit code.'}"
-            )
+            raise RuntimeError(f"Failed to stage charter file {rel}. {detail or 'git add returned a non-zero exit code.'}")
 
 
 def _ensure_gitignore_entries(repo_root: Path, required: list[str]) -> None:
@@ -261,9 +259,7 @@ def generate(
         "--template-set",
         help="Override doctrine template set (must exist in packaged doctrine missions)",
     ),
-    from_interview: bool = typer.Option(
-        True, "--from-interview/--no-from-interview", help="Load interview answers if present"
-    ),
+    from_interview: bool = typer.Option(True, "--from-interview/--no-from-interview", help="Load interview answers if present"),
     profile: str = typer.Option("minimal", "--profile", help="Default profile when no interview is available"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing charter bundle"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
@@ -316,10 +312,7 @@ def generate(
             _emit_error(
                 console,
                 json_output=json_output,
-                message=(
-                    f"Refusing to overwrite symlinked charter at {charter_path}. "
-                    "Remove the symlink or update the symlink target directly."
-                ),
+                message=(f"Refusing to overwrite symlinked charter at {charter_path}. Remove the symlink or update the symlink target directly."),
             )
             raise typer.Exit(code=1)
 
@@ -411,9 +404,7 @@ def generate(
         # references.yaml entry is added; that file is retired (T012/T013).
         from charter.bundle import CANONICAL_MANIFEST
 
-        _ensure_gitignore_entries(
-            repo_root, list(CANONICAL_MANIFEST.gitignore_required_entries)
-        )
+        _ensure_gitignore_entries(repo_root, list(CANONICAL_MANIFEST.gitignore_required_entries))
         commit_input_files = [
             *list(CANONICAL_MANIFEST.tracked_files),
             Path(".gitignore"),
@@ -421,11 +412,7 @@ def generate(
         _stage_charter_files(repo_root, commit_input_files)
 
         if json_output:
-            local_support_files = [
-                reference.source_path
-                for reference in compiled.references
-                if reference.kind == "local_support"
-            ]
+            local_support_files = [reference.source_path for reference in compiled.references if reference.kind == "local_support"]
             print(
                 json.dumps(
                     {

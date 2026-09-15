@@ -134,10 +134,7 @@ class NagCacheRecord:
         latest_version = _optional_str(data, "latest_version")
         latest_source_raw = _require_str(data, "latest_source")
         if latest_source_raw not in _VALID_LATEST_SOURCES:
-            raise ValueError(
-                f"latest_source must be 'pypi', 'simple_index', or 'none', "
-                f"got {latest_source_raw!r}"
-            )
+            raise ValueError(f"latest_source must be 'pypi', 'simple_index', or 'none', got {latest_source_raw!r}")
         latest_source = _coerce_latest_source(latest_source_raw)
         fetched_at = _iso_to_dt(_require_str(data, "fetched_at"))
         last_shown_at_raw = _optional_str(data, "last_shown_at")
@@ -187,9 +184,7 @@ def _parse_snooze_step(raw_value: object) -> SnoozeStep | None:
     if raw_value is None:
         return None
     if raw_value not in _VALID_SNOOZE_STEPS:
-        raise ValueError(
-            f"snooze_step must be one of {sorted(_VALID_SNOOZE_STEPS)} or null, got {raw_value!r}"
-        )
+        raise ValueError(f"snooze_step must be one of {sorted(_VALID_SNOOZE_STEPS)} or null, got {raw_value!r}")
     if raw_value == "24h":
         return "24h"
     if raw_value == "48h":

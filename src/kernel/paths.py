@@ -40,10 +40,7 @@ _BUILT_IN_DIR_NAME = "built-in"
 
 #: Fail-closed message when no package mission assets can be located. Kept as a
 #: module constant so the door's two closed-error branches speak with one voice.
-_MISSION_ASSETS_NOT_FOUND_MSG = (
-    "Cannot locate package mission assets. "
-    "Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli."
-)
+_MISSION_ASSETS_NOT_FOUND_MSG = "Cannot locate package mission assets. Set SPEC_KITTY_TEMPLATE_ROOT or reinstall spec-kitty-cli."
 
 
 def _is_windows() -> bool:
@@ -143,9 +140,7 @@ MISSION_ASSETS_SIBLING_PATTERN = BUILT_IN_PACK_SIBLING_PATTERN / _MISSION_ASSETS
 #: checkout glob and the sibling-scan guard in :func:`_resolve_env_root` agree.
 _SRC_LAYOUT_DIR_NAME = "src"
 
-_MISSION_ASSETS_CHECKOUT_GLOB_PATTERN = (
-    PurePosixPath(_SRC_LAYOUT_DIR_NAME) / "*" / "*" / _MISSION_ASSETS_DIR_NAME
-)
+_MISSION_ASSETS_CHECKOUT_GLOB_PATTERN = PurePosixPath(_SRC_LAYOUT_DIR_NAME) / "*" / "*" / _MISSION_ASSETS_DIR_NAME
 
 
 def _looks_like_missions_root(path: Path) -> bool:
@@ -222,10 +217,7 @@ def _resolve_env_root(root: Path) -> Path:
     for candidate in candidates:
         if candidate.is_dir() and _looks_like_missions_root(candidate):
             return candidate
-    raise FileNotFoundError(
-        "SPEC_KITTY_TEMPLATE_ROOT does not contain mission assets: "
-        f"{root}. Expected a missions directory or a Spec Kitty checkout root."
-    )
+    raise FileNotFoundError(f"SPEC_KITTY_TEMPLATE_ROOT does not contain mission assets: {root}. Expected a missions directory or a Spec Kitty checkout root.")
 
 
 def get_built_in_pack_root() -> Path:
@@ -395,10 +387,7 @@ def get_package_asset_root() -> Path:
     missions = pack_root / _MISSION_ASSETS_DIR_NAME
     if missions.is_dir():
         return missions
-    raise FileNotFoundError(
-        f"Built-in pack root {pack_root} has no {_MISSION_ASSETS_DIR_NAME!r} directory "
-        "(fail-closed: no legacy fall-through)."
-    )
+    raise FileNotFoundError(f"Built-in pack root {pack_root} has no {_MISSION_ASSETS_DIR_NAME!r} directory (fail-closed: no legacy fall-through).")
 
 
 def render_runtime_path(path: Path, *, for_user: bool = True) -> str:

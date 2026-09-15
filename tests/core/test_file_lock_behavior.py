@@ -38,6 +38,7 @@ from specify_cli.core.file_lock import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+
 def _write_synthetic_record(path: Path, *, age_s: float = 0.0, pid: int = 12345) -> None:
     """Write a synthetic lock record at ``path``."""
     started = now_utc() - timedelta(seconds=age_s)
@@ -55,6 +56,7 @@ def _write_synthetic_record(path: Path, *, age_s: float = 0.0, pid: int = 12345)
 # ---------------------------------------------------------------------------
 # Happy path: acquire → record visible on disk → release → record gone
 # ---------------------------------------------------------------------------
+
 
 async def test_acquire_writes_record_and_release_truncates(tmp_path: Path) -> None:
     """Arrange: fresh lock path;
@@ -90,6 +92,7 @@ async def test_acquire_creates_parent_directory(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Timeout branch
 # ---------------------------------------------------------------------------
+
 
 async def test_timeout_raises_lock_acquire_timeout(tmp_path: Path) -> None:
     """Arrange: first holder holds the lock;
@@ -133,6 +136,7 @@ async def test_timeout_error_exposes_path_attribute(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Corrupt lock file recovery
 # ---------------------------------------------------------------------------
+
 
 def test_read_lock_record_returns_none_for_missing_file(tmp_path: Path) -> None:
     """Arrange: no lock file; Act: read; Assert: None returned."""
@@ -210,6 +214,7 @@ def test_force_release_does_not_remove_fresh_lock(tmp_path: Path) -> None:
 # Stale-lock adoption during acquire
 # ---------------------------------------------------------------------------
 
+
 async def test_stale_lock_is_adopted_without_timeout(tmp_path: Path) -> None:
     """Arrange: pre-seeded stale lock record (age > stale_after_s);
     Act: acquire with stale_after_s matching;
@@ -224,6 +229,7 @@ async def test_stale_lock_is_adopted_without_timeout(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Contention via multiprocessing (marked slow)
 # ---------------------------------------------------------------------------
+
 
 def _worker_acquire_and_flag(lock_path: str, flag_path: str, sleep_s: float) -> None:
     """Worker process: acquire lock, write flag file, hold briefly, release."""
