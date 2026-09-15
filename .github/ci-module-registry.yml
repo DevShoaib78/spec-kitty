@@ -341,6 +341,14 @@ out_of_matrix_test_dirs:
   - tests/ui
 
 - reason: >-
+    Wall-clock startup-budget tests: ci-nightly.yml's -m performance lane is their
+    execution home. Shared-runner load makes these timing assertions unsuitable for a
+    per-PR module shard; their deterministic structural counterparts still run in the
+    ordinary suite.
+  dirs:
+  - tests/performance
+
+- reason: >-
     Secondary tests/specify_cli/** tree: the module matrix claims each module's primary
     mirror (tests/<module> or an explicit row test_dirs entry); this secondary tree is
     selected by no per-PR lane. Recorded deliberately (spec-kitty#4369 inventory) --
@@ -380,6 +388,7 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/invocation
   - tests/specify_cli/invocation/cli
   - tests/specify_cli/lanes
+  - tests/specify_cli/live_work
   - tests/specify_cli/merge
   - tests/specify_cli/migration
   - tests/specify_cli/mission_step_contracts
