@@ -30,16 +30,19 @@ from typing import Any
 import yaml
 
 __all__ = [
+    "DEFAULT_REGISTRY_PATH",
     "DEFAULT_ROUTER_PATH",
     "PROBE_GROUPS",
     "GateSelection",
     "Router",
     "load_router",
     "select_gates",
+    "select_modules",
 ]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ROUTER_PATH = _REPO_ROOT / ".github" / "workflows" / "ci-router.yml"
+DEFAULT_REGISTRY_PATH = _REPO_ROOT / ".github" / "ci-module-registry.yml"
 
 # The ``any_src`` filter row is the FR-004 fail-closed PROBE (matches any
 # ``src/**``), consumed only by the router's ``unmatched`` step. It is never a
@@ -158,3 +161,53 @@ def select_gates(
         selected_jobs=router.always_on_jobs | gated_selected,
         selected_code_shards=gated_selected & router.code_shard_jobs,
     )
+
+
+def _registry_module_names(path: Path | None = None) -> frozenset[str]:
+    """The module inventory from ``.github/ci-module-registry.yml`` —
+    ``modules[].module``. The registry is the single data source for the
+    module set (WP08); reading the module *inventory* here is not a second
+    routing map (the #2476 hazard is re-encoding the path->group filter, which
+    this does not do — routing still comes from the parsed router)."""
+    registry = yaml.safe_load((path or DEFAULT_REGISTRY_PATH).read_text(encoding="utf-8"))
+    return frozenset(str(row["module"]) for row in registry["modules"])
+
+
+def select_modules(
+    changed_paths: Iterable[str | Path],
+    *,
+    router: Router | None = None,
+    registry_path: Path | None = None,
+    mode: str = "pr",
+) -> frozenset[str]:
+    """Return which module-registry rows (``.github/ci-module-registry.yml``
+    ``modules[].module``) a changed-path set selects.
+
+    The module universe is the registry's own ``modules[].module`` set — NOT
+    ``router.src_backed_groups``. Most registry modules are 1:1 with a
+    src-backed routing group, but spec-kitty#4386 added the ``ci`` module,
+    whose routing group (``scripts/ci/**`` + ``.github/workflows/**``) carries
+    no ``src/`` glob and so is NOT src-backed. Intersecting against
+    ``src_backed_groups`` would therefore silently drop the ``ci`` module on
+    every scoped PR (including one that changes CI infra — the exact diff that
+    should run ``tests/ci``). We intersect the router's matched groups against
+    the registry inventory instead. Routing still comes from the parsed router
+    via :func:`select_gates` — the registry supplies only the module list, so
+    no second path->group map is introduced (the #2476 hazard stays closed).
+    ``docs``/``corpus``/``e2e`` are non-src routing groups with no registry
+    row and are excluded by the intersection.
+
+    ``mode="full"`` or a fail-closed unmatched ``src/**`` diff (FR-004) selects
+    every module — run-all, never a silent narrowing of the matrix. Otherwise
+    only the matched groups that are registry modules are selected (a docs-only
+    diff selects zero modules; overlapping glob ownership between groups, e.g.
+    ``core_misc``/``unit``/``execution_context`` each also owning
+    ``src/specify_cli/status/**``, is preserved exactly as the router already
+    encodes it — never narrowed to a single "owning" module).
+    """
+    router = router or load_router()
+    modules = _registry_module_names(registry_path)
+    selection = select_gates(changed_paths, router=router, mode=mode)
+    if mode == "full" or selection.unmatched_src:
+        return modules
+    return selection.matched_groups & modules
