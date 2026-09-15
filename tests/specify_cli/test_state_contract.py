@@ -218,6 +218,7 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/migrations/",
         ".kittify/missions/__pycache__/",
         ".kittify/runtime/",
+        ".kittify/saas-auth.json",
         ".kittify/skills-manifest.json",
         ".kittify/sync-state.json",
         ".kittify/workspaces/",

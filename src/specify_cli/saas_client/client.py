@@ -23,8 +23,10 @@ from urllib.parse import urlencode
 import httpx
 
 from specify_cli.auth import get_token_manager
+from specify_cli.auth.errors import AuthenticationError, NetworkError
+from specify_cli.auth.transport import AuthenticatedClient
 from specify_cli.auth.session import require_private_team_id
-from specify_cli.saas_client.auth import AuthContext, load_auth_context
+from specify_cli.saas_client.auth import AuthContext, _oauth_session_context
 from specify_cli.saas_client.endpoints import AdmissionAnswer, AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
 from specify_cli.saas_client.errors import (
     SaasAuthError,
@@ -105,9 +107,11 @@ class SaasClient:
         self._team_slug = team_slug
         self._timeout = timeout
         self._project_root = Path(project_root) if project_root is not None else None
-        self._http = _http or httpx.Client(
-            headers={"Authorization": f"Bearer {token}"},
+        self._authority = _authenticated_authority_for_token(token)
+        self._http = AuthenticatedClient(
+            client=_http,
             timeout=timeout,
+            before_send=self._validate_send_token,
         )
 
     # ------------------------------------------------------------------
@@ -129,15 +133,12 @@ class SaasClient:
 
     @classmethod
     def from_env(cls, repo_root: object = None) -> SaasClient:
-        """Construct from environment variables or ``.kittify/saas-auth.json``.
+        """Construct from the renewable session persisted by ``auth login``.
 
         Args:
-            repo_root: Optional :class:`~pathlib.Path` to the repo root, passed
-                through to :func:`~specify_cli.saas_client.auth.load_auth_context`
-                **and** carried on the client as the project whose consent gates
-                every send (#3030 FR-030).  Omitting it yields a client that
-                refuses every request, because there is then no project whose
-                consent could be resolved.
+            repo_root: Checkout owning the decision or mission being sent.
+                Carried on the client for project authority checks; credentials
+                come exclusively from the renewable CLI login session.
 
         Returns:
             A fully initialised :class:`SaasClient`.
@@ -146,7 +147,9 @@ class SaasClient:
             SaasAuthError: If authentication credentials cannot be resolved.
         """
         root: Path | None = Path(str(repo_root)) if repo_root is not None else None
-        ctx: AuthContext = load_auth_context(repo_root=root)
+        ctx: AuthContext | None = _oauth_session_context()
+        if ctx is None:
+            raise SaasAuthError("Authentication required. Run `spec-kitty auth login`.")
         return cls(
             base_url=ctx.saas_url,
             token=ctx.token,
@@ -193,12 +196,17 @@ class SaasClient:
         client serves is an interactive lookup whose moment has passed by the
         time an operator could retry it.
         """
-        if _authenticated_authority_for_token(self._token) is None:
-            raise SaasConsentError("target_authority_mismatch: token-matched account, Private Teamspace, and one Collaborative Teamspace are required")
+        self._current_authority()
         url = f"{self._base_url}{path}"
         effective_timeout = timeout if timeout is not None else self._timeout
         try:
             response = self._http.get(url, timeout=effective_timeout) if method == "GET" else self._http.post(url, json=json, timeout=effective_timeout)
+        except NetworkError as exc:
+            if isinstance(exc.__cause__, httpx.TimeoutException):
+                raise SaasTimeoutError(f"{method} {url} timed out after {effective_timeout}s") from exc
+            raise SaasClientError(f"{method} {url} failed") from exc
+        except AuthenticationError as exc:
+            raise SaasAuthError("Authentication failed. Run `spec-kitty auth login`.", status_code=401) from exc
         except httpx.TimeoutException as exc:
             raise SaasTimeoutError(f"{method} {url} timed out after {effective_timeout}s") from exc
         except httpx.RequestError as exc:
@@ -251,10 +259,29 @@ class SaasClient:
             return "project_not_admitted: hosted target refused this project"
         return str(message) if isinstance(message, str) and message else "project_not_admitted: hosted target refused this project"
 
+    def _current_authority(self) -> tuple[str, str, str]:
+        """Allow token renewal, but never rebind an existing client to another account."""
+        session = get_token_manager().get_current_session()
+        if session is None:
+            raise SaasAuthError("Authentication required. Run `spec-kitty auth login`.")
+        self._validate_send_token(session.access_token)
+        self._token = session.access_token
+        assert self._authority is not None
+        return self._authority
+
+    def _validate_send_token(self, token: str) -> None:
+        """Recheck authority immediately before every attempt, including refresh replay."""
+        authority = _authenticated_authority_for_token(token)
+        if authority is None or authority != self._authority:
+            raise SaasConsentError("target_authority_mismatch: authenticated account or team changed")
+        session = get_token_manager().get_current_session()
+        if session is None:
+            raise SaasAuthError("Authentication required. Run `spec-kitty auth login`.")
+        if session.issuer_url is not None and session.issuer_url.strip().rstrip("/") != self._base_url:
+            raise SaasConsentError("target_authority_mismatch: session issuer differs from SaaS destination")
+
     def _resolve_team_slug(self, team_slug: str | None = None) -> str:
-        authority = _authenticated_authority_for_token(self._token)
-        if authority is None:
-            raise SaasAuthError("Exactly one token-matched Collaborative Teamspace is required")
+        authority = self._current_authority()
         slug = resolve_project_team_slug(self._project_root, authority[2], self.check_repo_admission)
         if team_slug is not None and team_slug.strip() != slug:
             raise SaasConsentError("target_authority_mismatch: collaborative team path substitution refused")

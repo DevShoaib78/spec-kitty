@@ -104,7 +104,10 @@ class RecordingHttp:
     def __init__(self, sink: list[dict[str, Any]]) -> None:
         self._sink = sink
 
-    def get(self, url: str, *, timeout: float | None = None) -> _RecordingResponse:
+    def request(self, method: str, url: str, **kwargs: Any) -> _RecordingResponse:
+        return getattr(self, method.lower())(url, **kwargs)
+
+    def get(self, url: str, *, headers: dict[str, str] | None = None, timeout: float | None = None) -> _RecordingResponse:
         del timeout
         self._sink.append({"method": "GET", "url": url, "json": None})
         return _RecordingResponse()
@@ -268,6 +271,11 @@ def harness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Harness:
     monkeypatch.setenv("SPEC_KITTY_TEAM_SLUG", TEAM_A)
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     monkeypatch.chdir(a_root)
+
+    # Widen now uses the ordinary renewable login session, not the legacy env bearer.
+    from specify_cli.saas_client.auth import AuthContext
+
+    monkeypatch.setattr(_client_mod, "_oauth_session_context", lambda: AuthContext(saas_url=SAAS_URL, token=TOKEN_A, team_slug=TEAM_A))
 
     h = Harness(a_root, b_root)
 

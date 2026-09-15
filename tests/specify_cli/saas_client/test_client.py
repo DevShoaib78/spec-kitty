@@ -83,6 +83,7 @@ def test_saas_client_error_status_code_optional() -> None:
 def test_client_constructs_with_explicit_http() -> None:
     """SaasClient accepts an injected httpx.Client without raising."""
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     client = SaasClient("http://localhost:8000", "tok", _http=mock_http)
     assert client._base_url == "http://localhost:8000"
     assert client._token == "tok"
@@ -90,6 +91,7 @@ def test_client_constructs_with_explicit_http() -> None:
 
 def test_client_strips_trailing_slash_from_base_url() -> None:
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     client = SaasClient("http://localhost:8000/", "tok", _http=mock_http)
     assert client._base_url == "http://localhost:8000"
 
@@ -97,6 +99,7 @@ def test_client_strips_trailing_slash_from_base_url() -> None:
 def test_has_token_true_when_token_present() -> None:
     """has_token property returns True for a non-empty token."""
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     client = SaasClient("http://localhost:8000", "my-token", _http=mock_http)
     assert client.has_token is True
 
@@ -104,6 +107,7 @@ def test_has_token_true_when_token_present() -> None:
 def test_has_token_false_when_token_empty() -> None:
     """has_token property returns False when token is an empty string."""
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     client = SaasClient("http://localhost:8000", "", _http=mock_http)
     assert client.has_token is False
 
@@ -803,6 +807,7 @@ def _make_client(response_data: object, status_code: int = 200) -> SaasClient:
     mock_resp.text = json.dumps(response_data) if isinstance(response_data, (dict, list)) else str(response_data)
 
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.return_value = mock_resp
     mock_http.post.return_value = mock_resp
     return SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
@@ -848,6 +853,7 @@ def test_health_probe_returns_true_on_200() -> None:
 def test_health_probe_returns_false_on_error() -> None:
     """health_probe never raises — returns False on any error."""
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.side_effect = httpx.TimeoutException("timeout")
     client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     assert client.health_probe() is False
@@ -876,6 +882,7 @@ def test_fetch_discussion_returns_discussion_data() -> None:
 
 def test_timeout_exception_maps_to_saas_timeout_error() -> None:
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.side_effect = httpx.TimeoutException("timed out")
     client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     with pytest.raises(SaasTimeoutError):
@@ -888,6 +895,7 @@ def test_401_maps_to_saas_auth_error() -> None:
     mock_resp.is_success = False
     mock_resp.text = "Unauthorized"
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.return_value = mock_resp
     client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     with pytest.raises(SaasAuthError) as exc_info:
@@ -901,6 +909,7 @@ def test_404_maps_to_saas_not_found_error() -> None:
     mock_resp.is_success = False
     mock_resp.text = "Not Found"
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.return_value = mock_resp
     client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     with pytest.raises(SaasNotFoundError) as exc_info:
@@ -911,6 +920,7 @@ def test_404_maps_to_saas_not_found_error() -> None:
 def test_request_error_maps_to_saas_client_error() -> None:
     """A non-timeout transport failure (e.g. connection refused) maps to SaasClientError."""
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.side_effect = httpx.ConnectError("boom")
     client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     with pytest.raises(SaasClientError, match="failed") as exc_info:
@@ -925,6 +935,7 @@ def test_500_maps_to_generic_saas_client_error() -> None:
     mock_resp.is_success = False
     mock_resp.text = "Internal Server Error"
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.return_value = mock_resp
     client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     with pytest.raises(SaasClientError) as exc_info:
@@ -948,6 +959,7 @@ def test_absent_token_authority_refuses_before_any_transport(monkeypatch: pytest
 
     monkeypatch.setattr(client_module, "_authenticated_authority_for_token", lambda _token: None)
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     client = SaasClient("http://test", "tok", _http=mock_http)
     with pytest.raises(SaasConsentError, match="target_authority_mismatch"):
         client.check_repo_admission("owner/repo")
@@ -969,6 +981,7 @@ def test_project_not_admitted_body_maps_to_consent_error() -> None:
         "retryable": False,
     }
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.return_value = mock_resp
     client = SaasClient("http://test", "tok", _http=mock_http)
     with pytest.raises(SaasConsentError, match="this repo is not admitted to any team"):

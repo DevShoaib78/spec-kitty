@@ -43,6 +43,7 @@ _SRC = _REPO_ROOT / "src" / "specify_cli"
 # Subsystems that MUST go through the centralized auth transport.
 _WALKED_SUBSYSTEMS: tuple[Path, ...] = (
     _SRC / "tracker",
+    _SRC / "saas_client",
     _SRC / "auth" / "websocket",
 )
 
@@ -71,11 +72,7 @@ _FORBIDDEN_HTTPX_CTORS: frozenset[str] = frozenset({"Client", "AsyncClient"})
 
 def _collect_python_sources(root: Path) -> list[Path]:
     """Return every ``.py`` file under *root* (excluding ``__pycache__``)."""
-    return [
-        path
-        for path in root.rglob("*.py")
-        if "__pycache__" not in path.parts
-    ]
+    return [path for path in root.rglob("*.py") if "__pycache__" not in path.parts]
 
 
 def _is_httpx_constructor_call(node: ast.AST) -> TypeGuard[ast.Call]:
@@ -140,14 +137,10 @@ class TestAuthTransportSingleton:
                 if source_file in _TRANSPORT_ALLOWLIST:
                     continue
                 for lineno, snippet in _find_violations(source_file):
-                    offenders.append(
-                        (source_file.relative_to(_REPO_ROOT), lineno, snippet)
-                    )
+                    offenders.append((source_file.relative_to(_REPO_ROOT), lineno, snippet))
 
         if offenders:
-            formatted = "\n".join(
-                f"  {path}:{lineno}: {snippet}" for path, lineno, snippet in offenders
-            )
+            formatted = "\n".join(f"  {path}:{lineno}: {snippet}" for path, lineno, snippet in offenders)
             pytest.fail(
                 "FR-030 violation: direct httpx.Client / httpx.AsyncClient "
                 "instantiation outside the auth transport boundary "
@@ -166,11 +159,25 @@ class TestAuthTransportSingleton:
         """
         bad_source = tmp_path / "bad.py"
         bad_source.write_text(
-            "import httpx\n"
-            "def go():\n"
-            "    return httpx.Client(timeout=1.0)\n",
+            "import httpx\ndef go():\n    return httpx.Client(timeout=1.0)\n",
             encoding="utf-8",
         )
         violations = _find_violations(bad_source)
         assert violations, "Scanner failed to flag a direct httpx.Client call"
         assert violations[0][0] == 3
+
+
+def test_saas_transport_gate_has_concrete_source_floor() -> None:
+    sources = _collect_python_sources(_SRC / "saas_client")
+    assert len(sources) >= 5
+    assert _SRC / "saas_client" / "client.py" in sources
+    assert _SRC / "saas_client" in _WALKED_SUBSYSTEMS
+    assert not any(path.is_relative_to(_SRC / "saas_client") for path in _TRANSPORT_ALLOWLIST)
+
+
+def test_saas_transport_gate_detects_mutated_real_client(tmp_path: Path) -> None:
+    source = _SRC / "saas_client" / "client.py"
+    mutant = tmp_path / "client.py"
+    mutant.write_text(source.read_text() + "\nregression = httpx.Client()\n")
+    assert not _find_violations(source)
+    assert len(_find_violations(mutant)) == 1

@@ -137,6 +137,16 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="spec-kitty init or upgrade",
     ),
     StateSurface(
+        name="legacy_saas_credentials",
+        path_pattern=".kittify/saas-auth.json",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.IGNORED,
+        owner_module="saas_client/auth",
+        creation_trigger="legacy operator-provided credentials (never generated)",
+    ),
+    StateSurface(
         name="dashboard_control",
         path_pattern=".kittify/.dashboard",
         root=StateRoot.PROJECT,

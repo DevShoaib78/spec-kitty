@@ -54,6 +54,7 @@ import threading
 from contextlib import suppress
 from kernel.clock import now_utc, timedelta
 from typing import Any
+from collections.abc import Callable
 
 import httpx
 
@@ -63,15 +64,13 @@ from specify_cli.auth.errors import (
     NotAuthenticatedError,
     TokenRefreshError,
 )
-from specify_cli.auth.http import request_with_fallback_sync
+from specify_cli.auth.http.transport import request_with_fallback_sync
 from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError
 from specify_cli.diagnostics import report_once
 
 
 logger = logging.getLogger(__name__)
-AUTH_RELOGIN_MESSAGE = (
-    "Authentication expired. Run `spec-kitty auth login` to re-authenticate."
-)
+AUTH_RELOGIN_MESSAGE = "Authentication expired. Run `spec-kitty auth login` to re-authenticate."
 REFRESH_LOCK_TIMEOUT_ERROR_CODE = "refresh_lock_timeout"
 
 
@@ -291,6 +290,7 @@ class AuthenticatedClient:
         *,
         timeout: float = 30.0,
         client: httpx.Client | None = None,
+        before_send: Callable[[str], None] | None = None,
     ) -> None:
         self._timeout = timeout
         # Note: we keep an injected ``httpx.Client`` only when callers
@@ -299,6 +299,8 @@ class AuthenticatedClient:
         # this module*, so wrapping the constructor here is the
         # invariant boundary.
         self._client = client
+        # Validate caller-owned authority again after a refresh, before replay.
+        self._before_send = before_send
 
     # ------------------------------------------------------------------
     # Public surface
@@ -322,9 +324,7 @@ class AuthenticatedClient:
             _emit_user_facing_failure_once(_message_for_auth_refresh_failure(exc))
             raise
         if access_token is None:
-            raise NotAuthenticatedError(
-                "Authentication required. Run `spec-kitty auth login`."
-            )
+            raise NotAuthenticatedError("Authentication required. Run `spec-kitty auth login`.")
 
         response = self._send(method, url, access_token, kwargs)
 
@@ -390,6 +390,8 @@ class AuthenticatedClient:
         Honors the SaaS stdlib HTTPS fallback when the configured SaaS
         host is unreachable via httpx (mirrors :class:`OAuthHttpClient`).
         """
+        if self._before_send is not None:
+            self._before_send(access_token)
         caller_headers = kwargs.get("headers") or {}
         headers = dict(caller_headers)
         headers["Authorization"] = f"Bearer {access_token}"
@@ -398,7 +400,7 @@ class AuthenticatedClient:
         return request_with_fallback_sync(
             method,
             url,
-            timeout=self._timeout,
+            timeout=send_kwargs.pop("timeout", self._timeout),
             client=self._client,
             **send_kwargs,
         )

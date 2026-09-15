@@ -17,6 +17,8 @@ no longer reads any consent record — so the seeding went with it.
 from __future__ import annotations
 
 import pytest
+from types import SimpleNamespace
+from specify_cli.auth import transport
 
 from specify_cli.saas_client import client as _client_mod
 
@@ -40,3 +42,19 @@ def _stub_saas_authority(monkeypatch: pytest.MonkeyPatch) -> None:
             else ("legacy-account", "legacy-private-teamspace", "my-team")
         ),
     )
+
+
+@pytest.fixture(autouse=True)
+def _stub_renewable_session(monkeypatch, _stub_saas_authority):
+    """Legacy endpoint tests use a stable session; lifecycle tests live in tests/auth."""
+    session = SimpleNamespace(access_token="tok", issuer_url=None)
+    original = _client_mod._authenticated_authority_for_token
+
+    def authority(token):
+        session.access_token = token
+        return original(token)
+
+    monkeypatch.setattr(_client_mod, "_authenticated_authority_for_token", authority)
+    monkeypatch.setattr(_client_mod, "get_token_manager", lambda: SimpleNamespace(get_current_session=lambda: session))
+    monkeypatch.setattr(transport, "_fetch_access_token_sync", lambda: session.access_token)
+    monkeypatch.setattr(transport, "_force_refresh_sync", lambda: None)

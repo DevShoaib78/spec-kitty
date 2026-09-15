@@ -219,3 +219,6 @@ pytest-of-*/
 
 # Spec Kitty per-repo operator env file (local operator config)
 .kittify/.kitty.env
+
+# Legacy operator-provided SaaS credentials
+.kittify/saas-auth.json

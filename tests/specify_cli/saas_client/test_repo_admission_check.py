@@ -35,6 +35,7 @@ def _make_client(response_data: object, status_code: int = 200) -> SaasClient:
     mock_resp.text = json.dumps(response_data) if isinstance(response_data, (dict, list)) else str(response_data)
 
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.return_value = mock_resp
     return SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
 
@@ -101,6 +102,7 @@ def test_malformed_admission_cannot_supply_authority(data) -> None:
 def test_timeout_raises_saas_timeout_error_not_admitted_false() -> None:
     """A network timeout raises — it must never be confused with admitted:false."""
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.side_effect = httpx.TimeoutException("timed out")
     client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     with pytest.raises(SaasTimeoutError):
@@ -113,6 +115,7 @@ def test_401_raises_saas_auth_error() -> None:
     mock_resp.is_success = False
     mock_resp.text = "Unauthorized"
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.return_value = mock_resp
     client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     with pytest.raises(SaasAuthError) as exc_info:
@@ -126,6 +129,7 @@ def test_404_raises_saas_not_found_error() -> None:
     mock_resp.is_success = False
     mock_resp.text = "Not Found"
     mock_http = MagicMock(spec=httpx.Client)
+    mock_http.request.side_effect = lambda method, url, **kwargs: getattr(mock_http, method.lower())(url, **kwargs)
     mock_http.get.return_value = mock_resp
     client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
     with pytest.raises(SaasNotFoundError):
