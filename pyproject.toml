@@ -1672,7 +1672,6 @@ exclude = [
     "tests/init/test_charter_runtime_integration.py",
     "tests/init/test_init_flow_integration.py",
     "tests/init/test_init_help.py",
-    "tests/init/test_init_idempotent.py",
     "tests/init/test_init_in_existing_repo.py",
     "tests/init/test_init_minimal_integration.py",
     "tests/init/test_init_next_steps.py",
