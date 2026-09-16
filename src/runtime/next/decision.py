@@ -341,15 +341,28 @@ def decide_next(
 
 
 def _with_guard_failure_paths(decision: Decision, repo_root: Path) -> Decision:
-    """Attach the path each failing guard read (#3883).
+    """Attach the path each failing guard read, keyed by the real artifact
+    tag (#3883, #4390).
 
     A blocked decision that names an artifact but not the directory it was
     read from is not diagnosable without a source read — the reported
     query-vs-advance disagreement was unrecoverable for exactly that reason.
-    The paths come from ``runtime_bridge_io.artifact_search_paths``, the same
-    placement seam ``gather_artifact_presence`` resolves for its own reads, so
-    this reports where the guard actually looked rather than a second guess at
-    it.
+    The paths come from ``runtime_bridge_io.guard_failure_artifact_paths``,
+    which resolves the same placement seam ``gather_artifact_presence`` uses
+    for its own reads, so this reports where the guard actually looked rather
+    than a second guess at it.
+
+    #4390: ``guard_failures`` is keyed by real artifact tag, not by the raw
+    failure string — every registered mission family's guard table
+    (software-dev/research/documentation/plan) reports genuine
+    artifact-presence failures as human-readable MESSAGES
+    (``"Required artifact missing: {name}"``), not filenames, and mixes them
+    with free-form non-artifact failures (WP status, source counts, ...).
+    Keying by the raw string (the pre-#4390 shape) fabricated a "looked for"
+    path for every failure indiscriminately. ``guard_failure_artifact_paths``
+    resolves the real tag for each failure and only emits an entry for a
+    genuine artifact-presence failure; the render (``next_cmd.py``) iterates
+    the resulting tags directly, never ``decision.guard_failures``.
 
     Reporting must never change the outcome: any failure to resolve leaves the
     decision exactly as the runtime produced it.
@@ -358,14 +371,14 @@ def _with_guard_failure_paths(decision: Decision, repo_root: Path) -> Decision:
         return decision
     try:
         from runtime.next.runtime_bridge import _resolve_runtime_feature_dir, get_mission_type
-        from runtime.next.runtime_bridge_io import artifact_search_paths
+        from runtime.next.runtime_bridge_io import guard_failure_artifact_paths
 
         feature_dir = _resolve_runtime_feature_dir(repo_root, decision.mission_slug)
-        decision.guard_failure_paths = artifact_search_paths(
+        decision.guard_failure_paths = guard_failure_artifact_paths(
             feature_dir,
             mission_family=decision.mission or get_mission_type(feature_dir),
             repo_root=repo_root,
-            names=decision.guard_failures,
+            guard_failures=decision.guard_failures,
         )
     except Exception as exc:  # noqa: BLE001 — diagnostics must never break a decision
         _logger.debug("guard-failure paths unavailable for %s: %s", decision.mission_slug, exc)
