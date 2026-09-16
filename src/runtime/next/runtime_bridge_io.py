@@ -1228,6 +1228,67 @@ def artifact_search_paths(
     return resolved
 
 
+def guard_failure_artifact_paths(
+    feature_dir: Path,
+    *,
+    mission_family: str,
+    repo_root: Path | None = None,
+    guard_failures: Iterable[str],
+) -> dict[str, str]:
+    """Map each *genuinely missing-artifact* guard failure to the real path
+    a presence check would read, keyed by the real artifact tag (#3883, #4390).
+
+    ``guard_failures`` mixes two shapes depending on the mission family:
+
+    * An **unregistered custom family**'s fail-closed dispatch branch
+      (:func:`runtime_bridge_cores.evaluate_guards_strict`'s ``sorted(missing)``)
+      returns bare artifact filenames directly -- #3883's own reported
+      scenario.
+    * Every **registered family**'s guard table (software-dev / research /
+      documentation / plan, ``runtime_bridge_cores._GUARD_TABLES``) returns
+      human-readable MESSAGES. A genuine artifact-presence failure there is
+      always produced by the shared ``_check_artifact_present`` helper as
+      ``"Required artifact missing: {name}"``
+      (:data:`runtime_bridge_cores.MISSING_ARTIFACT_MESSAGE`); every other
+      failure (WP-status, source-count, dependency-field, occurrence-gate,
+      ...) is free-form prose that names no real artifact at all.
+
+    #4390's bug was treating BOTH shapes as literal filenames uniformly --
+    fabricating a "looked for <feature_dir>/<free-form message text>" path
+    for non-artifact failures on every registered family, the common case.
+    This resolves the real tag instead of guessing from the message: a
+    candidate (the message's ``"Required artifact missing: "`` suffix, or
+    the bare failure string itself) is only trusted when it names one of the
+    mission family's OWN real artifact tags
+    (:func:`_presence_filenames_for`) -- never a second, drifting parse of
+    arbitrary guard prose. Failures that resolve to no real tag (e.g. a
+    WP-status or source-count message, or the documentation family's
+    docs-glob message, which names a glob pattern rather than a single
+    checkable file) contribute no entry at all.
+    """
+    from runtime.next.runtime_bridge_cores import MISSING_ARTIFACT_MESSAGE  # noqa: PLC0415
+
+    missing_artifact_prefix = MISSING_ARTIFACT_MESSAGE.format(name="")
+    # Invariant: *mission_family* here must be the family whose guards produced
+    # *guard_failures*. The presence vocabulary is resolved per family, so if the
+    # path-resolution family ever diverges from the guard-evaluation family, a
+    # genuinely missing artifact whose tag is absent from this family's vocab
+    # would silently drop its ``looked for`` line. Live today all guards evaluate
+    # under software-dev (``_check_cli_guards``); the one structural mismatch is
+    # the not-yet-wired plan family (``_evaluate_plan_guards`` names ``spec.md``,
+    # which is not in ``_presence_filenames_for("plan")``) — keep the two families
+    # in step if plan-family guards are ever dispatched live.
+    known_tags = _presence_filenames_for(mission_family, repo_root=repo_root)
+    tags: set[str] = set()
+    for failure in guard_failures:
+        candidate = failure[len(missing_artifact_prefix) :] if failure.startswith(missing_artifact_prefix) else failure
+        if candidate in known_tags:
+            tags.add(candidate)
+    if not tags:
+        return {}
+    return artifact_search_paths(feature_dir, mission_family=mission_family, repo_root=repo_root, names=tags)
+
+
 def gather_artifact_presence(
     feature_dir: Path,
     *,

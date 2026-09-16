@@ -950,14 +950,17 @@ def _print_standard_human(decision) -> None:
 
     if decision.guard_failures:
         print(f"  Guards pending: {', '.join(decision.guard_failures)}")
-        # #3883: name the path each guard read. "missing" without a location
-        # is not diagnosable without reading the runtime's source, which is
-        # what turned the reported query/advance disagreement into a dead end.
+        # #3883/#4390: name the path each guard read. "missing" without a
+        # location is not diagnosable without reading the runtime's source,
+        # which is what turned the reported query/advance disagreement into
+        # a dead end. ``guard_failure_paths`` is keyed by the real artifact
+        # tag (not the raw failure string, which may be a free-form
+        # non-artifact message) — iterate its own keys so a non-artifact
+        # guard failure (WP status, source count, ...) never grows a
+        # fabricated "looked for" line.
         searched = getattr(decision, "guard_failure_paths", None) or {}
-        for name in decision.guard_failures:
-            location = searched.get(name)
-            if location:
-                print(f"    - {name}: looked for {location}")
+        for tag in sorted(searched):
+            print(f"    - {tag}: looked for {searched[tag]}")
 
     if decision.reason:
         print(f"  Reason: {decision.reason}")

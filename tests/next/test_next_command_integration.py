@@ -743,6 +743,51 @@ class TestNextCommandCLI:
         assert "Guards pending: spec.md, tasks.md" in result.output
         assert "looked for" not in result.output
 
+    def test_real_guard_block_shows_real_path_for_missing_artifact_only(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#4390: a REAL software-dev mission's guard failures are human-
+        readable MESSAGES, not filenames — the pre-fix render treated every
+        one of them as a literal artifact tag, fabricating a
+        ``looked for kitty-specs/<slug>/Not all work packages are approved
+        or done`` line: a path never checked, worse than no path at all.
+
+        This drives the genuine ``decide_next`` -> ``evaluate_guards_strict``
+        -> presence path (no hand-fed ``guard_failure_paths``, no patched
+        resolver) to a real composed-``tasks`` guard failure that combines
+        BOTH failure shapes in one decision: ``tasks.md`` is genuinely
+        missing (an artifact-presence failure) and WP01 genuinely has no
+        ``dependencies`` field (a free-form, non-artifact failure). Only the
+        first may grow a ``looked for`` line, and it must name the real
+        ``tasks.md`` path the presence check actually reads — never a path
+        built from the WP-dependency message text.
+        """
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        # No frontmatter `dependencies:` field on WP01 -- a genuine, real
+        # non-artifact guard failure (`_first_missing_dependency_failure`).
+        _add_wp_files(feature_dir, {"WP01": "planned"})
+        # Advance the real runtime to the composed "tasks" step without ever
+        # writing tasks.md at the feature root, so its own presence check
+        # genuinely fails too.
+        _advance_runtime_to_step(repo_root, "042-test-feature", "tasks")
+        monkeypatch.chdir(repo_root)
+
+        result = runner.invoke(
+            cli_app,
+            ["next", "--agent", "test-agent", "--mission", "042-test-feature", "--result", "success"],
+        )
+
+        assert "Required artifact missing: tasks.md" in result.output
+        assert "missing 'dependencies' in frontmatter" in result.output
+        # (a) the genuinely missing artifact shows the real, repo-relative
+        # path the presence check actually reads.
+        assert "- tasks.md: looked for kitty-specs/042-test-feature/tasks.md" in result.output
+        # (b) the non-artifact WP-dependency failure shows no "looked for"
+        # line at all -- in particular never one built from its own message
+        # text (the pre-fix fabrication this pins against).
+        looked_for_lines = [line for line in result.output.splitlines() if "looked for" in line]
+        assert len(looked_for_lines) == 1, looked_for_lines
+        assert "dependencies" not in looked_for_lines[0]
+
     def test_nonexistent_feature_blocked(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Non-existent feature returns blocked with exit code 1."""
         repo_root = _scaffold_project(tmp_path)
