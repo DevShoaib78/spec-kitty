@@ -1164,10 +1164,23 @@ def mission_type_list(
     # ``except ValueError`` also catches ``pydantic.ValidationError`` (this
     # resolver's other documented ``Raises`` type) since it subclasses
     # ``ValueError`` in the pinned pydantic version.
+    #
+    # #4600: the same call chain (``PackContext.from_config`` ->
+    # ``pack_context._load_config``) also raises ``CharterPackConfigError``
+    # on a malformed ``.kittify/config.yaml`` — a
+    # ``KittyInternalConsistencyError``, NOT a ``ValueError`` — so a bare
+    # ``except ValueError`` let it escape as a raw traceback (and
+    # ``resolve_mission_type_source_layer`` in the row comprehension below
+    # re-loads the same config). Surface ``.body`` alongside the opaque
+    # ``CHARTER_PACK_CONFIG_INVALID`` code — the established render pattern
+    # (``charter/list_cmd.py`` / ``synthesize.py``).
+    from charter.activation.pack_context import CharterPackConfigError  # noqa: PLC0415
+
     try:
         roster = resolve_layered_roster(repo_root)
-    except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+    except (ValueError, CharterPackConfigError) as exc:
+        detail = f"{exc.code}: {exc.body}" if isinstance(exc, CharterPackConfigError) and exc.body else str(exc)
+        console.print(f"[red]Error:[/red] {detail}")
         raise typer.Exit(1) from exc
     rows: list[_MissionTypeRow] = [
         _MissionTypeRow(

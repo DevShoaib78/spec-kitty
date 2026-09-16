@@ -212,7 +212,16 @@ def _read_config_env_file_pointer(repo_root: Path | None) -> str | None:
     config_path = repo_root / _CONFIG_YAML_RELATIVE
     try:
         text = config_path.read_text(encoding="utf-8")
-    except OSError:
+    except (OSError, UnicodeDecodeError):
+        # UnicodeDecodeError is a ValueError, not an OSError, so a
+        # non-UTF-8 .kittify/config.yaml (bad merge, BOM/Latin-1 editor,
+        # truncated write) used to escape this boundary and crash
+        # ``load_operator_env_file`` -- which runs at ``specify_cli``
+        # import time, bricking EVERY command, including ``--version`` and
+        # ``doctor``, before Typer parses anything (#4600). Degrade to the
+        # default tier here like any other unreadable config; the config
+        # readers that CAN report it loudly (charter surfaces) do so at
+        # their own command boundaries.
         return None
     for raw_line in text.splitlines():
         if not raw_line.startswith(_ENV_FILE_CONFIG_PREFIX):

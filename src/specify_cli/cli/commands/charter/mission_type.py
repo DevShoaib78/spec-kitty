@@ -172,7 +172,10 @@ def charter_mission_type_list(
     (the FR-006 gate), so there is nothing to compute for it.
     """
     repo_root = Path.cwd()
-    activated_ids = existing_mission_types(repo_root)
+
+    # Lazy like this module's other ``charter.*`` imports (CLI startup cost;
+    # ``pack_context`` itself lazy-imports back into this profile package).
+    from charter.activation.pack_context import CharterPackConfigError  # noqa: PLC0415
 
     # CL-006/NFR-002 (post-fix verification sweep, mission
     # up-mission-type-seam-01KZY1JB): ``resolve_layered_roster`` scans every
@@ -184,10 +187,26 @@ def charter_mission_type_list(
     # catches ``pydantic.ValidationError`` (this resolver's other documented
     # ``Raises`` type) since it subclasses ``ValueError`` in the pinned
     # pydantic version.
+    #
+    # #4600: ``existing_mission_types`` (``PackContext.from_config`` ->
+    # ``pack_context._load_config``) raises ``CharterPackConfigError`` on a
+    # malformed ``.kittify/config.yaml`` — a ``KittyInternalConsistencyError``,
+    # NOT a ``ValueError`` — and pre-fix ran BEFORE this guard, so an invalid
+    # config.yaml crashed this command (and the ``mission list`` /
+    # ``mission-type list`` aliases that delegate to it) with a raw
+    # traceback while ``charter status`` / ``charter list`` degraded or
+    # exited cleanly on the same file. Read the activation set inside the
+    # same boundary and catch the config-file domain error alongside the
+    # roster's ValueErrors; ``str(exc)`` is only the opaque
+    # ``CHARTER_PACK_CONFIG_INVALID`` code, so surface ``.body`` too —
+    # the established render pattern (``charter/list_cmd.py`` /
+    # ``synthesize.py``'s ``KittyInternalConsistencyError`` handlers).
     try:
+        activated_ids = existing_mission_types(repo_root)
         roster = resolve_layered_roster(repo_root)
-    except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+    except (ValueError, CharterPackConfigError) as exc:
+        detail = f"{exc.code}: {exc.body}" if isinstance(exc, CharterPackConfigError) and exc.body else str(exc)
+        console.print(f"[red]Error:[/red] {detail}")
         raise typer.Exit(1) from exc
 
     activated_id_set = set(activated_ids)

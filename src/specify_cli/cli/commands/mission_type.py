@@ -1602,7 +1602,24 @@ def show_mission_type(
     )
 
     repo_root = Path.cwd()
-    activated_ids = existing_mission_types(repo_root)
+
+    # #4600: ``existing_mission_types`` (``PackContext.from_config`` ->
+    # ``pack_context._load_config``) raises ``CharterPackConfigError`` on a
+    # malformed ``.kittify/config.yaml`` — a ``KittyInternalConsistencyError``,
+    # NOT a ``ValueError`` — and pre-fix ran unguarded before the roster
+    # boundary below, so an invalid config.yaml crashed ``mission-type show``
+    # with a raw traceback while sibling surfaces exited cleanly. ``str(exc)``
+    # is only the opaque ``CHARTER_PACK_CONFIG_INVALID`` code; surface
+    # ``.body`` too — the established render pattern (``charter/list_cmd.py``
+    # / ``synthesize.py``'s ``KittyInternalConsistencyError`` handlers).
+    from charter.activation.pack_context import CharterPackConfigError  # noqa: PLC0415
+
+    try:
+        activated_ids = existing_mission_types(repo_root)
+    except CharterPackConfigError as exc:
+        detail = f"{exc.code}: {exc.body}" if exc.body else exc.code
+        console.print(f"[red]Error:[/red] {detail}")
+        raise typer.Exit(1) from exc
 
     if mission_type_id not in activated_ids:
         err = UnknownMissionTypeError(mission_type_id, registered_ids=activated_ids)
@@ -1626,8 +1643,9 @@ def show_mission_type(
     # pydantic version.
     try:
         mt = resolve_layered_roster(repo_root).get(mission_type_id)
-    except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
+    except (ValueError, CharterPackConfigError) as exc:
+        detail = f"{exc.code}: {exc.body}" if isinstance(exc, CharterPackConfigError) and exc.body else str(exc)
+        console.print(f"[red]Error:[/red] {detail}")
         raise typer.Exit(1) from exc
     if mt is None:
         err = UnknownMissionTypeError(mission_type_id, registered_ids=activated_ids)

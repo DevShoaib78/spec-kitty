@@ -424,8 +424,35 @@ class TestConfigEnvFilePointer:
 
         assert resolved == state_home / ".kitty.env"
 
-    def test_env_file_key_lives_outside_the_doctrine_org_extra_forbid_block(
+    def test_non_utf8_config_yaml_degrades_to_default_pointer(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, repo_dir: Path
+    ) -> None:
+        """#4600: a non-UTF-8 ``.kittify/config.yaml`` must degrade to the
+        default pointer, never raise.
+
+        ``UnicodeDecodeError`` is a ``ValueError``, not an ``OSError``, so the
+        ``except OSError`` boundary used to let it escape
+        ``_read_config_env_file_pointer`` — and because
+        ``load_operator_env_file`` runs at ``specify_cli`` import time, that
+        single decode error bricked EVERY command (``--version``, ``doctor``,
+        ...) before Typer parsed anything. Realistic triggers: a bad merge, a
+        BOM/Latin-1 editor, a truncated write.
+        """
+        state_home = tmp_path / "state-home"
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(state_home))
+        # \xd0\xd0\xbad\xff: invalid UTF-8 on multiple fronts, exactly the
+        # repro bytes from the issue.
+        (repo_dir / ".kittify" / "config.yaml").write_bytes(b"\xd0\xd0\xbad\xff")
+
+        assert env_file._read_config_env_file_pointer(repo_dir) is None
+        resolved = env_file._resolve_home_tier_path(repo_dir, {})
+        assert resolved == state_home / ".kitty.env"
+
+        # And the public entry point (the one import time calls) survives too.
+        environ: dict[str, str] = {}
+        load_operator_env_file(start=repo_dir, environ=environ)
+
+    def test_env_file_key_lives_outside_the_doctrine_org_extra_forbid_block(        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, repo_dir: Path
     ) -> None:
         """The env_file pointer must not break ``charter.offering.drg.org_pack_config.PackRegistry``.
 
