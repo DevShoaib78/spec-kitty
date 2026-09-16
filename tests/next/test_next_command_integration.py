@@ -676,6 +676,73 @@ class TestNextCommandCLI:
         assert "Mission Type: software-dev" in result.output
         assert "Next step:" in result.output
 
+    def test_blocked_human_output_renders_guard_failure_looked_for_lines(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#4395: the #3883 blocked-decision 'looked for' render had no test —
+        reverting the render hunk in ``_print_standard_human`` left the whole
+        suite green. Pin it through the real CLI human-output path: a
+        populated ``guard_failure_paths`` map prints an indented
+        ``- <name>: looked for <path>`` line under ``Guards pending:`` for
+        each failing guard."""
+        repo_root = _scaffold_project(tmp_path)
+        monkeypatch.chdir(repo_root)
+
+        from runtime.next.decision import Decision
+
+        blocked = Decision(
+            kind="blocked",
+            agent="test-agent",
+            mission_slug="042-test-feature",
+            mission="software-dev",
+            mission_state="review",
+            timestamp="2026-09-16T00:00:00Z",
+            guard_failures=["spec.md", "tasks.md"],
+            guard_failure_paths={
+                "spec.md": "kitty-specs/042-test-feature/spec.md",
+                "tasks.md": "kitty-specs/042-test-feature/tasks.md",
+            },
+        )
+
+        with patch("specify_cli.cli.commands.next_cmd.decide_next", return_value=blocked):
+            result = runner.invoke(
+                cli_app,
+                ["next", "--agent", "test-agent", "--mission", "042-test-feature", "--result", "blocked"],
+            )
+
+        assert result.exit_code == 1, result.output
+        assert "Guards pending: spec.md, tasks.md" in result.output
+        assert "    - spec.md: looked for kitty-specs/042-test-feature/spec.md" in result.output
+        assert "    - tasks.md: looked for kitty-specs/042-test-feature/tasks.md" in result.output
+
+    def test_blocked_human_output_omits_looked_for_lines_when_paths_absent(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The mirror direction of the above (#4395): when ``guard_failure_paths``
+        is empty, ``Guards pending:`` still lists the failing guards but no
+        ``looked for`` line is printed for any of them."""
+        repo_root = _scaffold_project(tmp_path)
+        monkeypatch.chdir(repo_root)
+
+        from runtime.next.decision import Decision
+
+        blocked = Decision(
+            kind="blocked",
+            agent="test-agent",
+            mission_slug="042-test-feature",
+            mission="software-dev",
+            mission_state="review",
+            timestamp="2026-09-16T00:00:00Z",
+            guard_failures=["spec.md", "tasks.md"],
+            guard_failure_paths={},
+        )
+
+        with patch("specify_cli.cli.commands.next_cmd.decide_next", return_value=blocked):
+            result = runner.invoke(
+                cli_app,
+                ["next", "--agent", "test-agent", "--mission", "042-test-feature", "--result", "blocked"],
+            )
+
+        assert result.exit_code == 1, result.output
+        assert "Guards pending: spec.md, tasks.md" in result.output
+        assert "looked for" not in result.output
+
     def test_nonexistent_feature_blocked(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Non-existent feature returns blocked with exit code 1."""
         repo_root = _scaffold_project(tmp_path)
