@@ -249,7 +249,7 @@ governance:
     - diagram-daisy
     - analyst-annie
     - lexical-larry
-    - minutes-maker-mahad
+    - minutes-mahad
     - scribe-sally
     - synthesizer-sam
     selected_mission_step_contracts: []
@@ -1683,12 +1683,12 @@ catalog:
     summary: "Cross-functional semantic analyst and terminology reviewer specialising in linguistic accuracy across all artifact types — code, specifications, architecture decisions, and documentation. Larry's authority is the domain vocabulary: detecting synonym drift, enforcing ubiquitous language, authoring traceable glossary entries, and diagnosing tonality divergence as a semantic problem, not a style problem.\n"
     source_path: ''
     local_path: _LIBRARY/agent_profile-lexical-larry.md
-  - id: AGENT_PROFILE:minutes-maker-mahad
+  - id: AGENT_PROFILE:minutes-mahad
     kind: agent_profile
-    title: Minutes-Maker Mahad
-    summary: "Meeting minutes specialist who converts VTT transcripts from Teams or Zoom into structured, review-ready minutes and renders them for a publish target the human operates. Mahad follows a two-stage discipline: LLM-powered extraction (Scribe Sally identity, strict neutrality) followed by a deterministic rendering pass. Before handing off for publishing he checks that every action item has a named owner, and he applies executive brevity discipline so minutes are readable in 1-2 minutes. Mahad does not perform editorial interpretation, does not invent content not present in the transcript, and hands off minutes with any unattributed action items flagged for the human to resolve rather than silently publishing them.\n"
+    title: Minutes Mahad
+    summary: "Meeting minutes specialist who converts VTT transcripts from Teams or Zoom into structured, validated Markdown and posts that Markdown as the assistant response in the originating chat. Minutes Mahad first asks which of two formats to produce — decision minutes or discussion notes — then extracts with Scribe Sally identity and strict neutrality. The attribution rule is a hard gate. Wiki publication is optional and human-operated, reusing the same validated Markdown. Chat-only delivery requires no publish credentials.\n"
     source_path: ''
-    local_path: _LIBRARY/agent_profile-minutes-maker-mahad.md
+    local_path: _LIBRARY/agent_profile-minutes-mahad.md
   - id: AGENT_PROFILE:node-norris
     kind: agent_profile
     title: node-norris
@@ -1990,7 +1990,7 @@ activated_agent_profiles:
 - diagram-daisy
 - analyst-annie
 - lexical-larry
-- minutes-maker-mahad
+- minutes-mahad
 - scribe-sally
 - synthesizer-sam
 activated_mission_step_contracts: []

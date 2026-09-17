@@ -469,7 +469,7 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # edge is now DATA-DRIVEN from its ``operating-procedures`` field via
     # ``_emit_operating_procedure_edges`` (the field it was originally sourced from).
     # The edge still exists, derived rather than hand-pinned. Edges 6a/6b below stay
-    # hand-pinned: lexical-larry and minutes-maker-mahad carry NO operating-procedures
+    # hand-pinned: lexical-larry and minutes-mahad carry NO operating-procedures
     # field (they are prose-sourced), so nothing data-drives them.
     # Edge 6a: lexical-larry is the diagnostic "feeder into" the
     # glossary-maintenance-workflow (lexical-larry.agent.yaml:53-54);
@@ -482,12 +482,12 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "procedure:glossary-maintenance-workflow",
         Relation.SUGGESTS,
     ),
-    # Edge 6b: minutes-maker-mahad's own text states it is "the primary agent
-    # for the meeting-minutes-pipeline procedure" (minutes-maker-mahad.agent.
-    # yaml:39-40) -- explicit prose ownership, so ``requires``. Profile-channel
+    # Edge 6b: minutes-mahad's own text states it is "the primary agent
+    # for the meeting-minutes-pipeline procedure" (minutes-mahad.agent.
+    # yaml) -- explicit prose ownership, so ``requires``. Profile-channel
     # reachable.
     (
-        "agent_profile:minutes-maker-mahad",
+        "agent_profile:minutes-mahad",
         "procedure:meeting-minutes-pipeline",
         Relation.REQUIRES,
     ),

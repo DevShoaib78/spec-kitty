@@ -23,6 +23,9 @@ nodes:
 - urn: paradigm:execution-lanes
   kind: paradigm
   label: Execution Lanes
+- urn: paradigm:extract-then-publish-separation
+  kind: paradigm
+  label: Extract-Then-Publish Separation
 - urn: paradigm:git-flow
   kind: paradigm
   label: Git Flow

@@ -34,7 +34,7 @@ nodes:
   label: Kitty Glossary Writing Styleguide
 - urn: styleguide:meeting-minutes-format
   kind: styleguide
-  label: Meeting Minutes Format Styleguide
+  label: Meeting minutes format
 - urn: styleguide:mutation-aware-test-design
   kind: styleguide
   label: Mutation-Aware Test Design

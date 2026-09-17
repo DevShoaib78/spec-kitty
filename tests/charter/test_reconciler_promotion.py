@@ -10,8 +10,9 @@ Covers:
   ``models.py:82-91``) or the promoted YAML fails to load (brownfield risk
   this test guards against directly).
 - ``test_shipped_corpus_enforcement_histogram``: SC-005 -- the enforcement
-  histogram is exactly ``25/6/3 -> 25/7/2`` (required/lenient-adherence/
-  advisory); no directive is newly ``required``.
+  histogram is exactly ``25/6/3 -> 27/7/2`` (required/lenient-adherence/
+  advisory); the two additional required directives are new minutes doctrine,
+  not promotions of existing directives.
 - ``test_only_the_reconciler_yaml_value_changed``: NFR-001 boundary --
   ``reconcile-change-scope-tensions`` is the only directive whose
   enforcement differs from the ``25/6/3`` baseline snapshot.
@@ -27,6 +28,10 @@ from charter.offering.directives.repository import DirectiveRepository
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 _RECONCILER_ID = "RECONCILE_CHANGE_SCOPE_TENSIONS"
+_ADDED_REQUIRED_DIRECTIVES = {
+    "ACTION_ITEM_ATTRIBUTION",
+    "MINUTES_STAND_ALONE",
+}
 
 # SC-005 baseline: {required, lenient-adherence, advisory} counts across the
 # shipped built-in corpus BEFORE FR-003's promotion (measured directly
@@ -58,14 +63,18 @@ def test_promoted_reconciler_loads() -> None:
 
 
 def test_shipped_corpus_enforcement_histogram() -> None:
-    """SC-005: histogram is exactly 25/7/2; no directive is newly required."""
+    """SC-005: histogram is 27/7/2; no existing directive is newly required."""
     directives = _shipped_directives()
 
     histogram = dict.fromkeys(Enforcement, 0)
     for directive in directives:
         histogram[directive.enforcement] += 1
 
-    assert histogram[Enforcement.REQUIRED] == _BASELINE_HISTOGRAM[Enforcement.REQUIRED], "No directive may be newly promoted to 'required' by this change."
+    added_required = {directive.id for directive in directives if directive.id in _ADDED_REQUIRED_DIRECTIVES and directive.enforcement == Enforcement.REQUIRED}
+    assert added_required == _ADDED_REQUIRED_DIRECTIVES
+    assert histogram[Enforcement.REQUIRED] == (_BASELINE_HISTOGRAM[Enforcement.REQUIRED] + len(_ADDED_REQUIRED_DIRECTIVES)), (
+        "Only the two new minutes directives may increase the required count."
+    )
     assert histogram[Enforcement.LENIENT_ADHERENCE] == (_BASELINE_HISTOGRAM[Enforcement.LENIENT_ADHERENCE] + 1)
     assert histogram[Enforcement.ADVISORY] == _BASELINE_HISTOGRAM[Enforcement.ADVISORY] - 1
 

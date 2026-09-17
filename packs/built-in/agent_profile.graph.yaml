@@ -44,9 +44,9 @@ nodes:
 - urn: agent_profile:lexical-larry
   kind: agent_profile
   label: Lexical Larry
-- urn: agent_profile:minutes-maker-mahad
+- urn: agent_profile:minutes-mahad
   kind: agent_profile
-  label: Minutes-Maker Mahad
+  label: Minutes Mahad
 - urn: agent_profile:node-norris
   kind: agent_profile
   label: Node Norris
@@ -447,21 +447,31 @@ edges:
   target: tactic:terminology-extraction-mapping
   relation: requires
   reason: Systematic term extraction and mapping is Larry's core drift-detection pass
-- source: agent_profile:minutes-maker-mahad
+- source: agent_profile:minutes-mahad
+  target: directive:ACTION_ITEM_ATTRIBUTION
+  relation: requires
+- source: agent_profile:minutes-mahad
   target: directive:DIRECTIVE_003
   relation: requires
-- source: agent_profile:minutes-maker-mahad
+- source: agent_profile:minutes-mahad
   target: directive:DIRECTIVE_047
   relation: requires
-- source: agent_profile:minutes-maker-mahad
+- source: agent_profile:minutes-mahad
   target: directive:DIRECTIVE_049
   relation: requires
-- source: agent_profile:minutes-maker-mahad
+- source: agent_profile:minutes-mahad
   target: directive:DIRECTIVE_050
   relation: requires
-- source: agent_profile:minutes-maker-mahad
+- source: agent_profile:minutes-mahad
+  target: directive:MINUTES_STAND_ALONE
+  relation: requires
+- source: agent_profile:minutes-mahad
   target: procedure:meeting-minutes-pipeline
   relation: requires
+- source: agent_profile:minutes-mahad
+  target: styleguide:meeting-minutes-format
+  relation: suggests
+  reason: Decision-minutes and discussion-notes layout, action-item format, and length limits
 - source: agent_profile:node-norris
   target: agent_profile:implementer-ivan
   relation: specializes_from

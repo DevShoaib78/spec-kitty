@@ -47,7 +47,7 @@ specialization:
 
 collaboration:
   works-with:
-  - minutes-maker-mahad
+  - minutes-mahad
   - comms-cleo
   output-artifacts:
   - structured-summary.md

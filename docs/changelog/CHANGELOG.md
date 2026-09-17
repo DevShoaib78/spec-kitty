@@ -13,6 +13,12 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Built-in minutes agent is now `minutes-mahad` (chat-first, dual format).** The profile formerly shipped as `minutes-maker-mahad` is renamed to `minutes-mahad` / Minutes Mahad. It asks whether to produce decision minutes or discussion notes, posts one validated Markdown response in the originating chat, and treats wiki/knowledge-base publication as optional human-operated reuse of that Markdown. Companion doctrine: `ACTION_ITEM_ATTRIBUTION`, `MINUTES_STAND_ALONE`, paradigm `extract-then-publish-separation`, updated `meeting-minutes-pipeline` / `meeting-minutes-format`, and templates `meeting-minutes.md` plus `meeting-discussion-notes.md`. No Confluence, MCP, or vendor publisher is shipped in the built-in pack.
+
 ## [4.0.0rc3] - 2026-09-15
 
 Third public release candidate for the Team Kitty 4.x line, cut from `main` for

@@ -261,6 +261,9 @@ edges:
   relation: requires
   reason: Optional overlay invoked in step 4 when the project has identifiable bounded contexts.
 - source: procedure:meeting-minutes-pipeline
+  target: directive:ACTION_ITEM_ATTRIBUTION
+  relation: requires
+- source: procedure:meeting-minutes-pipeline
   target: directive:DIRECTIVE_003
   relation: requires
 - source: procedure:meeting-minutes-pipeline
@@ -269,6 +272,16 @@ edges:
 - source: procedure:meeting-minutes-pipeline
   target: directive:DIRECTIVE_050
   relation: requires
+- source: procedure:meeting-minutes-pipeline
+  target: directive:MINUTES_STAND_ALONE
+  relation: requires
+- source: procedure:meeting-minutes-pipeline
+  target: paradigm:extract-then-publish-separation
+  relation: suggests
+  reason: Chat extraction and optional human-operated wiki publish stay separate. Validated Markdown in the originating chat is canonical.
+- source: procedure:meeting-minutes-pipeline
+  target: styleguide:meeting-minutes-format
+  relation: suggests
 - source: procedure:migrate-project-guidance-to-spec-kitty-charter
   target: directive:DIRECTIVE_003
   relation: requires

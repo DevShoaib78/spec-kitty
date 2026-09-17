@@ -242,7 +242,7 @@ noted where they bind harder than advisory.
 - **Charter-blessed profiles.** The writing-comms specialist profiles are activated for
   governed delegation: `comms-cleo` (professional communications), `diagram-daisy`
   (diagramming), `analyst-annie` (analysis), `lexical-larry` (glossary/terminology),
-  `minutes-maker-mahad` (meeting minutes), `scribe-sally` (documentation), and
+  `minutes-mahad` (meeting minutes), `scribe-sally` (documentation), and
   `synthesizer-sam` (synthesis). The meeting-minutes format styleguide and pipeline
   procedure were intentionally left un-activated.
 

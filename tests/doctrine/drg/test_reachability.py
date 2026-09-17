@@ -962,10 +962,10 @@ class TestSixEdgesReachabilityWiring:
         reach = profile_channel_reachable(graph, agent_profile_seed_urns(graph))
         assert "procedure:glossary-maintenance-workflow" in reach
 
-    def test_meeting_minutes_pipeline_is_profile_reachable_via_minutes_maker_mahad(
+    def test_meeting_minutes_pipeline_is_profile_reachable_via_minutes_mahad(
         self, graph: DRGGraph
     ) -> None:
-        """Edge 6b: ``agent_profile:minutes-maker-mahad --requires--> meeting-
+        """Edge 6b: ``agent_profile:minutes-mahad --requires--> meeting-
         minutes-pipeline`` — mahad's own text: "the primary agent for" it."""
         reach = profile_channel_reachable(graph, agent_profile_seed_urns(graph))
         assert "procedure:meeting-minutes-pipeline" in reach

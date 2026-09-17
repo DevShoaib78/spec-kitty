@@ -50,18 +50,36 @@ _FIXTURES = Path(__file__).parent / "fixtures"
 _BEFORE_EDGES = _FIXTURES / "agent_profile_edges_before_consolidation.json"
 _PRE_MIGRATION_CS = _FIXTURES / "shipped_context_sources_pre_migration.json"
 
-#: The sole ledgered golden delta (ledger entry (21)). ``added`` are the three
-#: new ``agent_profile`` edges the consolidation deliberately mints; ``removed``
-#: is empty (the overlay was left intact — pedro/034 becomes a diamond, not a
-#: relation swap).
+#: Ledgered golden deltas from the frozen pre-consolidation graph. The first
+#: three additions are migration ledger entry (21). The minutes profile entries
+#: record its later rename plus the two new directive references and direct
+#: styleguide relationship, while preserving the historical fixture unchanged.
 _LEDGERED_ADDED: frozenset[tuple[str, str, str]] = frozenset(
     {
         ("agent_profile:python-pedro", "directive:DIRECTIVE_034", "requires"),
         ("agent_profile:diagram-daisy", "toolguide:mermaid-diagramming", "suggests"),
         ("agent_profile:diagram-daisy", "toolguide:plantuml-diagramming", "suggests"),
+        ("agent_profile:minutes-mahad", "directive:ACTION_ITEM_ATTRIBUTION", "requires"),
+        ("agent_profile:minutes-mahad", "directive:DIRECTIVE_003", "requires"),
+        ("agent_profile:minutes-mahad", "directive:DIRECTIVE_047", "requires"),
+        ("agent_profile:minutes-mahad", "directive:DIRECTIVE_049", "requires"),
+        ("agent_profile:minutes-mahad", "directive:DIRECTIVE_050", "requires"),
+        ("agent_profile:minutes-mahad", "directive:MINUTES_STAND_ALONE", "requires"),
+        ("agent_profile:minutes-mahad", "procedure:meeting-minutes-pipeline", "requires"),
+        ("agent_profile:minutes-mahad", "styleguide:meeting-minutes-format", "suggests"),
     }
 )
-_LEDGERED_REMOVED: frozenset[tuple[str, str, str]] = frozenset()
+_LEDGERED_REMOVED: frozenset[tuple[str, str, str]] = frozenset(
+    {
+        ("agent_profile:minutes-maker-mahad", "directive:DIRECTIVE_003", "requires"),
+        ("agent_profile:minutes-maker-mahad", "directive:DIRECTIVE_047", "requires"),
+        ("agent_profile:minutes-maker-mahad", "directive:DIRECTIVE_049", "requires"),
+        ("agent_profile:minutes-maker-mahad", "directive:DIRECTIVE_050", "requires"),
+        ("agent_profile:minutes-maker-mahad", "procedure:meeting-minutes-pipeline", "requires"),
+    }
+)
+
+_PROFILE_RENAMES = {"minutes-maker-mahad": "minutes-mahad"}
 
 #: ``context-sources`` key -> (canonical ``*-references`` field, id attribute on
 #: the resolved model). Directive refs key on ``code``; the rest on ``id``.
@@ -164,7 +182,8 @@ class TestNoReferenceIdLost:
 
         losses: list[str] = []
         for profile_id, per_kind in snapshot.items():
-            profile = repo.get(profile_id)
+            current_profile_id = _PROFILE_RENAMES.get(profile_id, profile_id)
+            profile = repo.get(current_profile_id)
             assert profile is not None, profile_id
             for cs_key, ids in per_kind.items():
                 attr, id_attr = _REFERENCE_ATTR[cs_key]
@@ -215,6 +234,6 @@ class TestGoldenDiffIsOnlyTheLedgeredDelta:
         added = after - before
         removed = before - after
         assert added == _LEDGERED_ADDED, (
-            f"unledgered agent_profile edge(s) appeared in the golden — either a real regression or a missing ledger entry (21): {added ^ _LEDGERED_ADDED}"
+            f"unledgered agent_profile edge(s) appeared in the golden — either a real regression or a missing ledger entry: {added ^ _LEDGERED_ADDED}"
         )
         assert removed == _LEDGERED_REMOVED, f"agent_profile edge(s) unexpectedly removed from the golden: {removed}"

@@ -458,7 +458,9 @@ class TestB2RealExemptionSet:
         it also counted no longer exist). The GOVERNANCE *file* set is unchanged
         — the 24 built-in profiles that carry ``directive-references`` — because
         every profile that authored ``context-sources`` also authored
-        ``directive-references``.
+        ``directive-references``. The minutes-mahad enhancement then adds two
+        profile directive references, moving the occurrence total from 92 to 94
+        without changing that file set.
         """
         inv = _load_inventory_module()
         inventory = inv.collect()
@@ -472,8 +474,9 @@ class TestB2RealExemptionSet:
         }
 
         # Occurrences (SC-011's own units) — see the docstring. 224 -> 92 after
-        # the context-sources removal (mission doctrine-drg-silent-drop-boundary).
-        assert len(gov) == 92
+        # the context-sources removal, then 92 -> 94 for minutes-mahad's two
+        # additional directive references.
+        assert len(gov) == 94
         assert len(raw) == 14
         # Files (the inexpressibility argument's actual unit — plan.md IC-02 /
         # this WP's context section; SC-011's wording conflates the two).
@@ -493,7 +496,7 @@ class TestB2RealExemptionSet:
                 "implementer-ivan",
                 "java-jenny",
                 "lexical-larry",
-                "minutes-maker-mahad",
+                "minutes-mahad",
                 "node-norris",
                 "paula-patterns",
                 "planner-priti",

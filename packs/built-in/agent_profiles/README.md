@@ -29,7 +29,7 @@ with the language name) extend the base `implementer-ivan` role for polyglot pro
 | `comms-cleo.agent.yaml` | `comms-cleo` | communicator |
 | `diagram-daisy.agent.yaml` | `diagram-daisy` | diagram-author |
 | `lexical-larry.agent.yaml` | `lexical-larry` | semantic-analyst |
-| `minutes-maker-mahad.agent.yaml` | `minutes-maker-mahad` | documentarian |
+| `minutes-mahad.agent.yaml` | `minutes-mahad` | documentarian |
 | `scribe-sally.agent.yaml` | `scribe-sally` | documentarian |
 | `synthesizer-sam.agent.yaml` | `synthesizer-sam` | synthesizer |
 

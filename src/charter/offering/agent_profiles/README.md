@@ -58,7 +58,7 @@ the same `profile-id`; project profiles have final precedence.
 | `comms-cleo` | Comms Cleo | communicator |
 | `diagram-daisy` | Diagram Daisy | diagram-author |
 | `lexical-larry` | Lexical Larry | semantic-analyst |
-| `minutes-maker-mahad` | Minutes-Maker Mahad | documentarian |
+| `minutes-mahad` | Minutes Mahad | documentarian |
 | `scribe-sally` | Scribe Sally | documentarian |
 | `synthesizer-sam` | Synthesizer Sam | synthesizer |
 

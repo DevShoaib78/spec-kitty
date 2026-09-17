@@ -70,10 +70,10 @@ constituents:
   kind: agent_profile
   path: agent_profiles/lexical-larry.agent.yaml
   provenance_path:
-- content_hash: b7a1b0305d1fdfa826a3d1fb2d8d0c37022ddb3fba0c62c89bd0dde78ead98f9
-  id: minutes-maker-mahad
+- content_hash: 7247e61f9768e6d0f9ea8936aeaeff152600e6e5d0902545894de156598298ca
+  id: minutes-mahad
   kind: agent_profile
-  path: agent_profiles/minutes-maker-mahad.agent.yaml
+  path: agent_profiles/minutes-mahad.agent.yaml
   provenance_path:
 - content_hash: 8bc673d323d963598b30e46d941d4cbe3151de4d509445d945b63e2a9c9cf674
   id: node-norris
@@ -115,7 +115,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/reviewer-renata.agent.yaml
   provenance_path:
-- content_hash: 351cc3f66935bc681e347e89ead3d7bce80912a176311d6bd2ba0ca85da22d63
+- content_hash: 6600c3d6ff7c1cfa57abc5bd03a94bd93154408dbd59d8a52f124361728bba5c
   id: scribe-sally
   kind: agent_profile
   path: agent_profiles/scribe-sally.agent.yaml
@@ -154,6 +154,11 @@ constituents:
   id: writing-audience-software-engineer
   kind: asset
   path: assets/audiences/software_engineer.md.asset.yaml
+  provenance_path:
+- content_hash: 84c4ab29c0f4698f82a498019ae85db8467de1794e1090aae98493056ef97f46
+  id: ACTION_ITEM_ATTRIBUTION
+  kind: directive
+  path: directives/action-item-attribution.directive.yaml
   provenance_path:
 - content_hash: 2c2ec1ba0cd88ed33d23f64d8cd1ccf334b398d3611cde4687b333fc8cdeb37d
   id: DIRECTIVE_001
@@ -310,6 +315,11 @@ constituents:
   kind: directive
   path: directives/disciplined-refactoring.directive.yaml
   provenance_path:
+- content_hash: 1cb1aea113574fc23e46ffaccd3889992bc132bdaa6d2ea42f5b0b7ac01cfcee
+  id: MINUTES_STAND_ALONE
+  kind: directive
+  path: directives/minutes-stand-alone.directive.yaml
+  provenance_path:
 - content_hash: 2e57008e1fb6f1e46a3833193c5d0ea0a7951df640727444933b3d93a04c08e1
   id: RECONCILE_CHANGE_SCOPE_TENSIONS
   kind: directive
@@ -364,6 +374,11 @@ constituents:
   id: execution-lanes
   kind: paradigm
   path: paradigms/execution-lanes.paradigm.yaml
+  provenance_path:
+- content_hash: 3dee3c84917ce5d39364266e58ec91382906dcb3bc104631733e878f71df947b
+  id: extract-then-publish-separation
+  kind: paradigm
+  path: paradigms/extract-then-publish-separation.paradigm.yaml
   provenance_path:
 - content_hash: 7937c5112717b74d604e49900bcde93d6c1a0c8b75e0458f895aafcef04eadde
   id: git-flow
@@ -455,7 +470,7 @@ constituents:
   kind: procedure
   path: procedures/legacy-codebase-triage.procedure.yaml
   provenance_path:
-- content_hash: b066e6d551159550ac3cb406c53e15cdccfbe1bcd97f93586097aa63c6ea5d01
+- content_hash: 9041996ad7a0ddcfaaa96b0ee5550b596b59c3fe026f426cd224e396e933a911
   id: meeting-minutes-pipeline
   kind: procedure
   path: procedures/meeting-minutes-pipeline.procedure.yaml
@@ -565,7 +580,7 @@ constituents:
   kind: styleguide
   path: styleguides/writing/kitty-glossary-writing.styleguide.yaml
   provenance_path:
-- content_hash: 748d75e1cd38de2cf412e2d63f8bf8424fd03fcb6c366c47b7baf783473ef3aa
+- content_hash: 6d00ee418b824b7badce0be89cb7cffd9785b7117561060416bc6fb2db77ffd2
   id: meeting-minutes-format
   kind: styleguide
   path: styleguides/meeting-minutes-format.styleguide.yaml
@@ -1340,7 +1355,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: a27e33946f62d2d6907b752bee2a664446985cac30f4f91412279ab9fddc6bd4
+manifest_hash: a9f34e7528e657ae1fe0697e61309adeb9961e937378800747829268f56ad5a3
 schema_version: '1'
 source_type: built-in
 source_url:

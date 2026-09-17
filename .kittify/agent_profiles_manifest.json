@@ -144,14 +144,14 @@
       "tool_key": "claude"
     },
     {
-      "file_hash": "925323a4d7d49c43b42843c79be98b16f0068ca6ad024d3ab191cc6795f4ea2c",
+      "file_hash": "196981239ccdad4bf39ba8d54f83b7216a90e2f895ee2a37233151111cbccd12",
       "format": "claude-agent",
-      "output_path": ".claude/agents/minutes-maker-mahad.md",
-      "profile_urn": "agent_profile:minutes-maker-mahad",
+      "output_path": ".claude/agents/minutes-mahad.md",
+      "profile_urn": "agent_profile:minutes-mahad",
       "projection_version": 1,
-      "source_hash": "21fde99793ee8903ac7489c4185b41189cd48e8280a353d55f248041179b6b98",
+      "source_hash": "316ae95726a525133c6bf9a7b528c2725ed6769fc2efea0edb953d0b5a192033",
       "source_layer": "builtin",
-      "source_path": "${SPEC_KITTY_PACKS_ROOT}/built-in/agent_profiles/minutes-maker-mahad.agent.yaml",
+      "source_path": "${SPEC_KITTY_PACKS_ROOT}/built-in/agent_profiles/minutes-mahad.agent.yaml",
       "tool_key": "claude"
     },
     {
@@ -408,14 +408,14 @@
       "tool_key": "codex"
     },
     {
-      "file_hash": "fa5f7f6becdcc656d3a91c0cb6bdbcaf86cca6168c00e977de3f84b9497ae256",
+      "file_hash": "b4e2afc7aefa76fe1841aa95232a8ab77d22d968269955c94537e090f3c6ea0d",
       "format": "codex-agent",
-      "output_path": ".codex/agents/minutes-maker-mahad.toml",
-      "profile_urn": "agent_profile:minutes-maker-mahad",
+      "output_path": ".codex/agents/minutes-mahad.toml",
+      "profile_urn": "agent_profile:minutes-mahad",
       "projection_version": 1,
-      "source_hash": "21fde99793ee8903ac7489c4185b41189cd48e8280a353d55f248041179b6b98",
+      "source_hash": "316ae95726a525133c6bf9a7b528c2725ed6769fc2efea0edb953d0b5a192033",
       "source_layer": "builtin",
-      "source_path": "${SPEC_KITTY_PACKS_ROOT}/built-in/agent_profiles/minutes-maker-mahad.agent.yaml",
+      "source_path": "${SPEC_KITTY_PACKS_ROOT}/built-in/agent_profiles/minutes-mahad.agent.yaml",
       "tool_key": "codex"
     },
     {
