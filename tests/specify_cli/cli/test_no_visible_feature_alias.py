@@ -124,12 +124,44 @@ def test_help_output_never_mentions_feature_alias() -> None:
 
     This is the user-visible contract: regardless of Click's internal
     representation, the alias must never appear in rendered help.
+
+    Each leaf is invoked DIRECTLY, not through the assembled root app:
+    routing ~268 ``--help`` invocations through the root callback chain
+    (``main_callback`` → ``root_callback`` → ``ensure_runtime`` /
+    ``ensure_global_agent_skills`` / ``ensure_global_agent_commands`` /
+    startup gates) made this single ``fast``+``unit`` test run for 30+
+    minutes (#4636). The ``--help`` option short-circuits in
+    ``parse_args`` before any command callback runs, so a direct leaf
+    invoke renders the leaf's own help text without paying the root
+    bootstrap once per leaf. Two classes of output differ from a
+    root-routed invoke, and both are intentionally out of scope for this
+    invariant: the usage line's prog name (the leaf name instead of the
+    full command path), and ancestor group-callback side output — e.g.
+    the deprecated ``doctrine`` group's CR-02 deprecation banner
+    (``cli/commands/doctrine.py::_deprecation_warning``) and the
+    ``tracker`` group's rollout-gate callback
+    (``cli/commands/tracker.py::tracker_callback``). Neither can mask a
+    ``--feature`` regression: the prog name is not an option flag, the
+    group-callback text is static side output, and the leaf's Options
+    section renders byte-identically either way.
+
+    The direct form is also strictly stronger for gated groups: with the
+    ``tracker`` rollout gate closed, a root-routed invoke exited 1 before
+    the leaf's help ever rendered, and with no exit-code assert the old
+    test would have scanned the gate's error text and silently passed
+    those leaves. Direct invoke plus the ``exit_code == 0`` assert below
+    closes that hole — any future leaf whose ``--help`` stops rendering
+    fails loudly instead of being skipped.
     """
     runner = CliRunner()
     offenders: list[tuple[str, str]] = []
-    for path, _cmd in _walk_leaf_commands(cli):
-        result = runner.invoke(
-            cli, list(path) + ["--help"], catch_exceptions=False
+    for path, cmd in _walk_leaf_commands(cli):
+        result = runner.invoke(cmd, ["--help"], catch_exceptions=False)
+        # A leaf whose --help fails to render cannot be checked — fail
+        # loudly instead of silently skipping its surface invariant.
+        assert result.exit_code == 0, (
+            f"--help did not render cleanly for leaf {' '.join(path)} "
+            f"(exit {result.exit_code}): {result.output}"
         )
         if FEATURE_TOKEN_RE.search(result.output):
             offenders.append((" ".join(path), result.output))
