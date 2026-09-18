@@ -26987,7 +26987,7 @@
   "schema_version": 1.0,
   "unique_tests_measured": 26618,
   "unmapped_tests": {
-    "description": "Tests whose path does not fall under any of the 19 module registry test-directory globs (e.g. tests/integration, tests/auth, tests/tracker, ...) -- these belong to no src-backed WP05 scrub group (the module registry only covers src/** modules; docs/corpus/e2e are non-src router groups per the scrub, out of this registry's scope). (Updated by #4334: tests/unit and tests/specify_cli/runtime are now mapped modules; the count moved 17 -> 19.)",
+    "description": "Tests whose path does not fall under any of the 21 module registry test-directory globs (e.g. tests/integration, tests/tracker, ...) -- these belong to no src-backed WP05 scrub group (the module registry only covers src/** modules; docs/corpus/e2e are non-src router groups per the scrub, out of this registry's scope). (Updated by #4334: tests/unit and tests/specify_cli/runtime are now mapped modules; the count moved 17 -> 19. Updated by #4374: tests/auth became a mapped module (auth row); the count moved 20 -> 21 -- so tests/auth is no longer unmapped.)",
     "duration_seconds": 881.55,
     "unique_tests": 11728
   },
