@@ -1,0 +1,79 @@
+# T004 marker-presence grep results (WP01, mission decide-out-of-matrix-test-dirs-01M2TKC7)
+#
+# Method: for each of the 68 population-(b) targeted directories, grep -rl for
+#   pytest.mark.<marker> across the tree, for marker in {corpus, windows_ci, performance, e2e, stress}.
+# ('interpreter' is not a distinct grep-able marker: ci-nightly.yml's interpreter matrix reruns
+#  '-m "fast or unit"', not a directory-specific marker, so it is not evaluated here.)
+#
+# Format: <dir><TAB>[<markers found> | NONE]
+# Rows with markers found back a verified sharpen-reason (EG2). Rows with NONE are flagged in the
+# ledger as a #2979-class marker-gap and dispositioned deferred-promotion, never a false marker-home.
+#
+tests/_factories	NONE
+tests/_support	['stress']
+tests/_support/coverage_safety	NONE
+tests/_support/git_template	NONE
+tests/acceptance	NONE
+tests/adversarial	NONE
+tests/ast_analysis	NONE
+tests/audit	['performance']
+tests/auth	['windows_ci', 'performance']
+tests/auth/concurrency	NONE
+tests/auth/integration	NONE
+tests/auth/secure_storage	['windows_ci']
+tests/auth/stress	NONE
+tests/calibration	NONE
+tests/characterization	NONE
+tests/cli_gate	NONE
+tests/compat	NONE
+tests/concurrency	NONE
+tests/context	NONE
+tests/contract	['corpus']
+tests/contract/spec_kitty_events_consumer	NONE
+tests/contract/spec_kitty_tracker_consumer	NONE
+tests/cross_branch	NONE
+tests/cross_cutting	['performance', 'stress']
+tests/cross_cutting/dashboard	['performance', 'stress']
+tests/cross_cutting/encoding	['performance']
+tests/cross_cutting/misc	['performance']
+tests/cross_cutting/packaging	NONE
+tests/cross_cutting/versioning	NONE
+tests/doctor	['performance']
+tests/dossier	NONE
+tests/evidence	NONE
+tests/git	['performance']
+tests/git_ops	NONE
+tests/init	NONE
+tests/integration	['corpus', 'performance', 'stress']
+tests/integration/core	NONE
+tests/integration/git	NONE
+tests/integration/migration	NONE
+tests/integration/retrospective	NONE
+tests/integration/review	['stress']
+tests/integration/sparse_checkout	NONE
+tests/invocation	NONE
+tests/lint	NONE
+tests/migrate	NONE
+tests/migration	['performance']
+tests/mission	['windows_ci']
+tests/mission_metadata	NONE
+tests/packaging	NONE
+tests/paths	['windows_ci']
+tests/perf	NONE
+tests/performance	['performance']
+tests/policy	['windows_ci']
+tests/prompts	NONE
+tests/proof	NONE
+tests/readiness	NONE
+tests/regressions	['windows_ci', 'performance']
+tests/research	NONE
+tests/retrospective	['performance']
+tests/reviews	NONE
+tests/scripts	NONE
+tests/specify_cli	['windows_ci', 'performance']
+tests/state	NONE
+tests/stress	['stress']
+tests/task_utils	NONE
+tests/tasks	NONE
+tests/test_template	NONE
+tests/tracker	['windows_ci']
