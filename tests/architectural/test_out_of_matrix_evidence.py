@@ -19,12 +19,30 @@ into an always-on architectural gate, so the mission's outcome cannot silently r
   stored coverage proves the subset claim (Renata F1). Vacuous when the mission never
   used this claim shape (see ``analysis/evidence/README.md``): never invented here.
 * **T019** -- every module row whose ``test_dirs`` this mission expanded (vs
-  ``git show main:``) is durably, re-runnably selected per-PR by
+  the base ref) is durably, re-runnably selected per-PR by
   :func:`scripts.ci.gate_selection.select_modules` (Renata F3 / Paula F3).
 
-T015 and T019 both diff the live registry against ``git show main:``. On ``main``
-itself that diff is empty (zero net diff post-merge) -- both guards are written to
-pass vacuously in that case rather than red every PR forever after this mission lands.
+T015 and T019 both diff the live registry against the resolved base ref (see
+``_resolve_base_ref``: ``origin/main`` preferred, ``main`` as fallback -- a fresh
+CI checkout via ``actions/checkout`` is a detached HEAD with no local
+``refs/heads/main``, only ``refs/remotes/origin/main``, so a bare ``main`` lookup
+errors there; this mirrors the ``origin/main``-preferred convention
+``test_archive_root_byte_identical.py``'s ``_PORT_BASE_REF`` already uses in the
+same arch-heavy CI job). When neither ref resolves in the checkout, that is a
+checkout/environment condition, not a code-invariant violation, so the base-diff
+tests SKIP rather than hard-error. On ``main`` itself that diff is empty (zero net
+diff post-merge) -- both guards are written to pass vacuously in that case rather
+than red every PR forever after this mission lands.
+
+**Honest framing: T015/T019 are transitional, not enduring.** Both diff against a
+base ref and no-op (return early) once head == base -- so post-merge, on ``main``
+itself, they assert nothing. T016 and T017 (and the other 25 lifted gates in this
+mission) are ENDURING: they assert against the current tree unconditionally,
+regardless of any base ref. Durable, permanent post-merge protection against a
+test directory silently falling out of module-shard coverage comes from the
+always-on ``test_module_shard_registry.py::test_every_test_directory_is_claimed_once_or_recorded_out_of_matrix``,
+not from T015/T019 -- those two exist to prove *this mission's own* registry
+changes were captured/selected correctly while they are still a diff.
 
 Loads (registry/timings/base-registry) happen lazily inside each test, mirroring
 ``test_module_shard_registry.py``'s own discipline, so a missing artefact reds for
@@ -35,8 +53,10 @@ loaders/constants (DRY) and must never edit it.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -74,17 +94,47 @@ _EVIDENCE_POINTER_RE = re.compile(r"evidence:\s*(analysis/evidence/[\w.\-/]+\.js
 # ---------------------------------------------------------------------------
 # Shared loading helpers
 # ---------------------------------------------------------------------------
-def _base_registry() -> dict[str, Any]:
-    """The registry as committed on ``main`` -- the mission's before-picture."""
+# Preference order: ``origin/main`` first, matching the ``_PORT_BASE_REF``
+# convention in ``test_archive_root_byte_identical.py`` -- a fresh CI checkout
+# (actions/checkout, detached HEAD) only populates ``refs/remotes/origin/main``,
+# not a local ``refs/heads/main``. Bare ``main`` is the fallback for a developer
+# checkout with no ``origin`` remote configured.
+_BASE_REF_CANDIDATES: tuple[str, ...] = ("origin/main", "main")
+
+
+def _resolve_base_ref(cwd: Path) -> str:
+    """Return the first candidate in ``_BASE_REF_CANDIDATES`` that resolves to a commit in ``cwd``.
+
+    A missing base ref is a checkout/environment condition, not a code-invariant
+    violation -- when neither candidate resolves, this skips the calling test
+    rather than raising, so the base-diff gates (T015/T019) never hard-error on a
+    checkout that simply lacks both refs.
+    """
+    for ref in _BASE_REF_CANDIDATES:
+        probe = subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+            check=False,
+        )
+        if probe.returncode == 0:
+            return ref
+    pytest.skip(f"base ref ({' / '.join(_BASE_REF_CANDIDATES)}) not resolvable in this checkout; pre-merge parity check cannot run")
+
+
+def _base_registry(*, cwd: Path = _REPO_ROOT) -> dict[str, Any]:
+    """The registry as committed on the resolved base ref -- the mission's before-picture."""
+    ref = _resolve_base_ref(cwd)
     result = subprocess.run(
-        ["git", "show", "main:.github/ci-module-registry.yml"],
+        ["git", "show", f"{ref}:.github/ci-module-registry.yml"],
         capture_output=True,
         text=True,
-        cwd=_REPO_ROOT,
+        cwd=cwd,
         check=True,
     )
     payload = yaml.safe_load(result.stdout)
-    assert isinstance(payload, dict), "main:.github/ci-module-registry.yml did not parse to a mapping"
+    assert isinstance(payload, dict), f"{ref}:.github/ci-module-registry.yml did not parse to a mapping"
     return payload
 
 
@@ -322,3 +372,72 @@ def test_expanded_test_dirs_are_selected_per_pr() -> None:
     for module, info in expanded.items():
         problems.extend(_selection_problems(module, info))
     assert not problems, "per-PR selection violations:\n" + "\n".join(problems)
+
+
+# ---------------------------------------------------------------------------
+# Base-ref resolver -- proves the origin/main-preferred fallback (second-opinion
+# architect review of this mission's WP04 landing pass: a bare ``main`` lookup
+# errors on a fresh CI checkout, which is a detached HEAD with no local
+# ``refs/heads/main``). Builds tiny throwaway git repos under ``tmp_path`` rather
+# than touching this repo's own ambient refs -- this worktree's local ``main``
+# is the real merge target, not a fixture.
+# ---------------------------------------------------------------------------
+def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_AUTHOR_NAME": "Pedro Test",
+        "GIT_AUTHOR_EMAIL": "pedro@example.invalid",
+        "GIT_COMMITTER_NAME": "Pedro Test",
+        "GIT_COMMITTER_EMAIL": "pedro@example.invalid",
+        "HOME": str(cwd),
+    }
+    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, env=env, check=True)
+
+
+def _init_repo_with_registry(repo: Path, *, branch: str, marker: str) -> str:
+    """git-init a throwaway repo on ``branch``, commit a minimal registry carrying ``marker``, return HEAD sha."""
+    repo.mkdir(parents=True, exist_ok=True)
+    _git(repo, "init", "-q")
+    _git(repo, "symbolic-ref", "HEAD", f"refs/heads/{branch}")
+    github_dir = repo / ".github"
+    github_dir.mkdir(parents=True, exist_ok=True)
+    (github_dir / "ci-module-registry.yml").write_text(yaml.safe_dump({"out_of_matrix_test_dirs": [], "modules": [], "_test_marker": marker}), encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", f"registry marker {marker}")
+    return _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+
+def test_resolve_base_ref_prefers_origin_main_when_both_exist_and_differ(tmp_path: Path) -> None:
+    """When ``origin/main`` and local ``main`` both resolve to different commits, origin/main wins."""
+    repo = tmp_path / "repo"
+    main_sha = _init_repo_with_registry(repo, branch="main", marker="main-branch")
+    origin_sha = _init_repo_with_registry(repo, branch="main", marker="origin-branch")
+    assert origin_sha != main_sha
+    _git(repo, "update-ref", "refs/remotes/origin/main", origin_sha)
+    _git(repo, "reset", "-q", "--hard", main_sha)  # move local main back so the two refs diverge
+
+    assert _resolve_base_ref(repo) == "origin/main"
+    registry = _base_registry(cwd=repo)
+    assert registry["_test_marker"] == "origin-branch"
+
+
+def test_resolve_base_ref_falls_back_to_main_when_origin_absent(tmp_path: Path) -> None:
+    """When no ``origin/main`` ref exists, the resolver falls back to local ``main``."""
+    repo = tmp_path / "repo"
+    _init_repo_with_registry(repo, branch="main", marker="main-only")
+
+    assert _resolve_base_ref(repo) == "main"
+    registry = _base_registry(cwd=repo)
+    assert registry["_test_marker"] == "main-only"
+
+
+def test_resolve_base_ref_skips_when_neither_ref_resolves(tmp_path: Path) -> None:
+    """When neither ``origin/main`` nor ``main`` resolves, the resolver SKIPS -- a checkout condition, not a red."""
+    repo = tmp_path / "repo"
+    _init_repo_with_registry(repo, branch="trunk", marker="trunk-only")
+
+    with pytest.raises(pytest.skip.Exception):
+        _resolve_base_ref(repo)
+    with pytest.raises(pytest.skip.Exception):
+        _base_registry(cwd=repo)
