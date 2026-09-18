@@ -67,6 +67,7 @@ module's docstring).
 from __future__ import annotations
 
 import json
+import math
 import queue
 import threading
 import time
@@ -75,6 +76,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
+from typing import Any, cast
 
 from . import budget, own_filter
 from .live_frame import FocusView, LiveFrame, StreamState, TeamSnapshot, parse_live_frame
@@ -108,6 +110,37 @@ class TeamStreamConfig:
     # Raw cached issuer references, never relay-derived opaque references.
     # None explicitly selects the complete diagnostic feed.
     own_sessions: str | None = None
+
+
+def _validated_seed_window(seed_window_s: float | None) -> float | None:
+    """``None``/``0`` means future-only (today's behaviour); anything else
+    must be a finite positive number of seconds. Fail closed on a non-finite
+    or non-positive ask rather than send the relay a seed window whose
+    meaning this side cannot vouch for."""
+    if seed_window_s is None:
+        return None
+    value = float(seed_window_s)
+    if not math.isfinite(value) or value < 0:
+        raise ValueError("seed_window_s must be >= 0 (or None for future-only)")
+    return value if value > 0 else None
+
+
+def _finite_number(value: Any) -> float | None:
+    """A real, finite float — the relay-clock anchor gate for ``observed_at``
+    (``Infinity``/``NaN``/bools/strings are not timestamps any honest reader
+    should date an entry against)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
+def _is_overlap(live_frame_obj: LiveFrame, overlap: set[tuple[str, int]] | None) -> bool:
+    """Whether a LIVE frame's ``(epoch, seq)`` identity already appeared in
+    a seeded history — the relay's follow contract delivers such a frame
+    twice (history + queue) by construction, and the consumer deduplicates
+    by identity, never by a seq range."""
+    return overlap is not None and (live_frame_obj.epoch, live_frame_obj.seq) in overlap
 
 
 class FilteredStream:
@@ -150,6 +183,18 @@ class FilteredStream:
         self._state = StreamState()
         self._lock = threading.Lock()
         self._frame_filter = frame_filter
+        # spec-kitty#4215: the coverage metadata of the last follow-preface a
+        # watch() seeded from (None until one does). One call's preface never
+        # leaks into the next — watch() resets it at the top of every call.
+        self._seed_coverage: dict[str, Any] | None = None
+        # spec-kitty#4335 (folded here): the last seeding SnapshotDocument's
+        # top-level ``observed_at`` — the relay's own receipt clock, the single
+        # anchor every entry ``observed_at`` in that document is measured
+        # against. A reader dating an entry skew-free needs it (entry age at
+        # the document is anchor − entry.observed_at, both relay-clock; only
+        # the time since fetch is measured locally). None when the last
+        # document carried none or nothing has seeded yet.
+        self._seed_anchor: float | None = None
 
     def _headers(self) -> dict[str, str]:
         """Two independent gates, each with its OWN credential — see the
@@ -223,15 +268,178 @@ class FilteredStream:
         except (json.JSONDecodeError, UnicodeDecodeError):
             return False
         with self._lock:
-            return self._state.seed_snapshot(doc)
+            applied = self._state.seed_snapshot(doc)
+            if applied:
+                # #4335: keep the document's own receipt-clock anchor so a
+                # reader can date entries skew-free (see seed_anchor).
+                self._seed_anchor = _finite_number(doc.get("observed_at")) if isinstance(doc, Mapping) else None
+            return applied
 
-    def watch(self, *, idle_timeout_s: float | None = None) -> Iterator[LiveFrame]:
+    def seed_coverage(self) -> Mapping[str, Any] | None:
+        """The coverage metadata of the last follow-preface :meth:`watch`
+        seeded from, or ``None`` when the last watch was future-only (or no
+        watch has run). Read-only."""
+        with self._lock:
+            return dict(self._seed_coverage) if self._seed_coverage is not None else None
+
+    def seed_anchor(self) -> float | None:
+        """The last seeding document's top-level ``observed_at`` (the relay's
+        receipt clock), or ``None``. The skew-free anchor a reader dates
+        snapshot entries against (#4335): entry age at the document is
+        ``anchor − entry.observed_at`` on the relay's clock alone, so only
+        the locally-measured time since fetch carries clock skew at all.
+        Read-only."""
+        with self._lock:
+            return self._seed_anchor
+
+    def _read_preface(self, resp: object, *, deadline: float | None = None) -> Mapping[str, Any]:
+        """spec-kitty#4215: read the first SSE ``data:`` event off a
+        ``follow=1`` response — the relay's own contract (zeitgeist#296,
+        ``managed_snapshot`` with ``follow=1``) makes that first event the
+        SAME ``SnapshotDocument`` the JSON route serves, with the live queue
+        reserved BEFORE the snapshot was built, so nothing published during
+        startup falls between the two.
+
+        Anything else on the wire there — a bare frame, an unparsable body,
+        a line no honest relay would send — is a hard :class:`ValueError`,
+        never a silently-skipped preface: a watch that quietly ignored the
+        document would look like a future-only stream while silently missing
+        the seed the caller asked for.
+
+        ``deadline`` (squad pass on #4716) is :meth:`watch`'s own
+        whole-call bound. The read loop checks it before every line, not
+        just per ``readline``: a relay trickling SSE comment/heartbeat lines
+        keeps each individual read inside the socket timeout forever, and
+        without a deadline check of its own this loop would hang past the
+        very bound ``idle_timeout_s`` promises. Elapsing it before the
+        preface arrives raises :class:`TimeoutError` — the caller asked for
+        a seed, and "no seed, silently" is the degradation this method
+        refuses everywhere else.
+
+        The preface is parsed from the FIRST non-empty ``data:`` line only —
+        a spec-valid multi-line SSE ``data:`` event (the spec allows joining
+        consecutive ``data:`` lines) would raise :class:`ValueError` rather
+        than be joined. That single-line assumption is load-bearing (the
+        relay's own follow handler emits the document as one line) and is
+        held loudly, consistent with the no-silent-degrade stance above."""
+        while True:
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError("idle_timeout_s elapsed before the relay served the follow preface")
+            raw_line = resp.readline(MAX_SNAPSHOT_BYTES + 1)  # type: ignore[attr-defined]
+            if not raw_line:
+                raise ValueError("relay closed the follow stream before serving a snapshot preface")
+            if len(raw_line) > MAX_SNAPSHOT_BYTES:
+                raise ValueError("relay's snapshot preface exceeds the bounded read size")
+            line = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
+            if not line.startswith("data:"):
+                continue  # comment/heartbeat/protocol line ahead of the preface
+            text = line[len("data:") :].strip()
+            if not text:
+                continue
+            try:
+                doc = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise ValueError("relay's snapshot preface was not valid JSON") from exc
+            if not isinstance(doc, dict):
+                raise ValueError("relay's snapshot preface was not a usable SnapshotDocument")
+            with self._lock:
+                if not self._state.seed_snapshot(doc):
+                    raise ValueError("relay's snapshot preface was not a usable SnapshotDocument")
+                self._seed_anchor = _finite_number(doc.get("observed_at"))
+            return cast(Mapping[str, Any], doc)
+
+    def _seed_history(self, doc: Mapping[str, Any]) -> tuple[list[LiveFrame], set[tuple[str, int]]]:
+        """Parse the preface's ``events`` history into the frames this watch
+        yields first, plus their ``(epoch, seq)`` identities for live overlap
+        dedup — the relay's own contract is "a frame that lands in BOTH the
+        snapshot's history and the live queue is OVERLAP, delivered twice and
+        deduplicated by the consumer on ``(epoch, seq)``".
+
+        History frames are yielded, never applied to :class:`StreamState`:
+        the preface already seeded state from the registries AT THE CUT,
+        which is strictly newer than any history frame, and applying a
+        pre-cut presence/focus frame would regress that view. History
+        ``signal`` frames are skipped outright — the document's own
+        ``coverage``/``gap`` fields carry that news as metadata, and a
+        pre-cut ``gap`` signal would otherwise clear the just-seeded state
+        for a loss the relay has already reported structurally — but their
+        ``(epoch, seq)`` still joins the overlap set before the skip: the
+        reserve-before-snapshot order delivers a pre-cut signal in BOTH the
+        history and the live queue, and a live copy that escaped dedup
+        would be state-applied (wiping the just-seeded registries) and
+        yielded as news that predates the history just replayed. A malformed
+        history entry is likewise skipped, not fatal: the ring's retention
+        bounds are the relay's to report (``coverage``), not this side's to
+        guess at."""
+        frames: list[LiveFrame] = []
+        seen: set[tuple[str, int]] = set()
+        events = doc.get("events")
+        if not isinstance(events, list):
+            return frames, seen
+        for raw in events:
+            live_frame_obj = parse_live_frame(raw)
+            if live_frame_obj is None:
+                continue
+            # Identity joins `seen` before ANY skip — signal frames included,
+            # and regardless of the frame filter: overlap dedup is about what
+            # the relay replays, not about what this client admits.
+            seen.add((live_frame_obj.epoch, live_frame_obj.seq))
+            if live_frame_obj.frame_type == "signal":
+                continue
+            if self._frame_filter is not None and not self._frame_filter(live_frame_obj):
+                continue
+            frames.append(live_frame_obj)
+        return frames, seen
+
+    def _watch_url(self, seed: float | None) -> str:
+        """The connection target for one watch: the plain future-only
+        stream, or — with a seed window — the relay's follow route. The
+        window is formatted as a plain decimal (the relay's own
+        ``_WINDOW_S_RE`` grammar,
+        ``[0-9]{1,19}(?:\\.[0-9]{1,19})?`` — exponent form is not in it)
+        without a trailing ``.0`` so the query reads exactly like every
+        other client's."""
+        if seed is None:
+            return self._filter_own_url(_STREAM_PATH)
+        window = str(int(seed)) if seed.is_integer() else repr(seed)
+        if "e" in window or "E" in window:
+            # repr emits exponent form exactly where the relay's grammar
+            # refuses it (0 < seed < 1e-4, and float >= 1e16 that is not an
+            # integer) — format fixed-decimal there instead, and refuse a
+            # window so small it rounds to 0 at microsecond granularity
+            # rather than silently ask for a future-only window.
+            window = f"{seed:.6f}".rstrip("0").rstrip(".")
+            if window in {"", "0"}:
+                raise ValueError(f"seed_window_s {seed!r} is below the relay's window granularity")
+        return self._filter_own_url(_SNAPSHOT_PATH, {"window_s": window, "follow": "1"})
+
+    def watch(self, *, idle_timeout_s: float | None = None, seed_window_s: float | None = None) -> Iterator[LiveFrame]:
         """Yield each accepted ``LiveFrame`` as it arrives.
+
+        ``seed_window_s`` (spec-kitty#4215, zeitgeist#296) selects the
+        race-safe snapshot-seeded handoff over the future-only stream: the
+        connection becomes ``GET /managed/snapshot?follow=1&window_s=…``,
+        whose first SSE event is a ``SnapshotDocument`` — state is seeded
+        from its presence/focus registries, its ``events`` history is
+        yielded first (frame-filtered, never state-applied — see
+        :meth:`_seed_history`), and every subsequent live frame whose
+        ``(epoch, seq)`` already appeared in that history is dropped as
+        overlap — never state-applied and never yielded — exactly the dedup
+        the relay's reserve-before-snapshot order makes correct. ``None`` or
+        ``0`` (the default) keeps today's future-only ``/managed/stream``
+        behaviour unchanged.
+        :meth:`seed_coverage` exposes the preface's coverage metadata after
+        the call. A relay without the route answers 404 and an unusable
+        preface raises :class:`ValueError` — a requested seed is never
+        silently degraded to a future-only stream. When ``idle_timeout_s``
+        is set and the deadline elapses BEFORE the preface arrives (a relay
+        trickling only heartbeat lines), that too is loud: a
+        :class:`TimeoutError`, never a silent no-seed return.
 
         Returns (does not raise) when the relay closes the connection, or
         when ``idle_timeout_s`` elapses across the whole call — including
-        connect and non-data SSE heartbeat lines. ``idle_timeout_s=None``
-        (the default) waits indefinitely.
+        connect, the preface read, and non-data SSE heartbeat lines.
+        ``idle_timeout_s=None`` (the default) waits indefinitely.
 
         Connection failure (refused, DNS, a non-2xx response — e.g. an
         expired credential, or 503 when the relay's stream slots are
@@ -241,15 +449,26 @@ class FilteredStream:
         apply here; whether/when to reconnect is the caller's decision, not
         this generator's.
         """
-        url = self._filter_own_url(_STREAM_PATH)
-        req = urllib.request.Request(url, headers=self._headers(), method="GET")
+        seed = _validated_seed_window(seed_window_s)
+        with self._lock:
+            self._seed_coverage = None
+            self._seed_anchor = None  # a future-only watch seeds from no document
+        req = urllib.request.Request(self._watch_url(seed), headers=self._headers(), method="GET")
         opener = budget.NoRedirects.build()
         deadline = None if idle_timeout_s is None else time.monotonic() + idle_timeout_s
         with opener.open(req, timeout=idle_timeout_s) as resp:
             if self._config.own_sessions is not None:
                 own_filter.require_ack(resp.headers)
+            overlap: set[tuple[str, int]] | None = None
+            if seed is not None:
+                doc = self._read_preface(resp, deadline=deadline)
+                coverage = doc.get("coverage")
+                with self._lock:
+                    self._seed_coverage = dict(coverage) if isinstance(coverage, Mapping) else {}
+                history, overlap = self._seed_history(doc)
+                yield from history
             if deadline is None:
-                yield from self._read_frames(resp)
+                yield from self._read_frames(resp, overlap=overlap)
                 return
 
             items: queue.Queue[bytes | BaseException] = queue.Queue()
@@ -282,7 +501,7 @@ class FilteredStream:
                         raise item
                     if not item:
                         return
-                    live_frame_obj = self._apply_line(item)
+                    live_frame_obj = self._apply_line(item, overlap=overlap)
                     if live_frame_obj is not None:
                         yield live_frame_obj
             finally:
@@ -290,20 +509,30 @@ class FilteredStream:
                 resp.close()
                 reader.join(timeout=0.1)
 
-    def _read_frames(self, resp: object) -> Iterator[LiveFrame]:
+    def _read_frames(self, resp: object, *, overlap: set[tuple[str, int]] | None = None) -> Iterator[LiveFrame]:
         """Unbounded read path used only when no deadline was requested."""
         while True:
             raw_line = resp.readline()  # type: ignore[attr-defined]
             if not raw_line:
                 return
-            live_frame_obj = self._apply_line(raw_line)
+            live_frame_obj = self._apply_line(raw_line, overlap=overlap)
             if live_frame_obj is not None:
                 yield live_frame_obj
 
-    def _apply_line(self, raw_line: bytes) -> LiveFrame | None:
-        """Parse, filter, and apply one line; return an accepted frame."""
+    def _apply_line(self, raw_line: bytes, *, overlap: set[tuple[str, int]] | None = None) -> LiveFrame | None:
+        """Parse, dedup, filter, and apply one line; return an accepted frame.
+
+        An overlap frame — one whose ``(epoch, seq)`` already appeared in a
+        seeded history — is dropped WHOLE, before the frame filter and before
+        :class:`StreamState`: never applied (a pre-cut ``gap``/``epoch``
+        signal would wipe the just-seeded registries; a pre-cut presence or
+        focus frame would regress them — the preface's registries are
+        strictly newer) and never yielded as fresh news that predates the
+        history the caller just replayed."""
         live_frame_obj = self._accept_line(raw_line)
         if live_frame_obj is None:
+            return None
+        if _is_overlap(live_frame_obj, overlap):
             return None
         if self._frame_filter is not None and not self._frame_filter(live_frame_obj):
             return None
