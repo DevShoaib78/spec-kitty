@@ -55,6 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       merge: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.merge }}
+      auth: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.auth }}
       missions: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.missions }}
       post_merge: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.post_merge }}
       release: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.release }}
@@ -96,6 +97,8 @@ jobs:
           filters: |
             merge:
               - 'src/specify_cli/merge/**'
+            auth:
+              - 'src/specify_cli/auth/**'
             missions:
               - 'src/specify_cli/mission.py'
               - 'src/specify_cli/mission_metadata.py'
@@ -206,6 +209,7 @@ jobs:
           # excluded so a data-only path can never mask an unmapped src/** change).
           for group_hit in \
             "${{ steps.filter.outputs.merge }}" \
+            "${{ steps.filter.outputs.auth }}" \
             "${{ steps.filter.outputs.missions }}" \
             "${{ steps.filter.outputs.post_merge }}" \
             "${{ steps.filter.outputs.release }}" \
@@ -360,6 +364,7 @@ jobs:
     needs: [changes]
     if: >-
       needs.changes.outputs.merge == 'true' ||
+      needs.changes.outputs.auth == 'true' ||
       needs.changes.outputs.missions == 'true' ||
       needs.changes.outputs.post_merge == 'true' ||
       needs.changes.outputs.release == 'true' ||

@@ -16,7 +16,14 @@ modules:
   cov_targets:
   - specify_cli.merge
   tier: standard
+  # spec-kitty#4374 (WP03 T009): promoted tests/specify_cli/merge (the secondary
+  # tests/specify_cli/** mirror) into this row's per-PR execution -- the explicit
+  # test_dirs list REPLACES the tests/merge fallback claim, so tests/merge is named
+  # explicitly alongside it or the guard reds. shard_count re-measured in T010.
   shard_count: 1
+  test_dirs:
+  - tests/merge
+  - tests/specify_cli/merge
 - module: missions
   roots:
   - src/specify_cli/mission.py
@@ -52,7 +59,17 @@ modules:
   - specify_cli.status
   - specify_cli.coordination
   tier: standard
+  # spec-kitty#4374 (WP03 T009): promoted tests/specify_cli/status AND
+  # tests/specify_cli/write_side (bundled -- write_side's top import is
+  # specify_cli.coordination.status_transition, matching this row's second root) into
+  # this row's per-PR execution -- the explicit test_dirs list REPLACES the
+  # tests/status fallback claim, so tests/status is named explicitly alongside them or
+  # the guard reds. shard_count re-measured in T010.
   shard_count: 1
+  test_dirs:
+  - tests/status
+  - tests/specify_cli/status
+  - tests/specify_cli/write_side
 - module: review
   roots:
   - src/specify_cli/review/**
@@ -95,10 +112,14 @@ modules:
   # skipped, 14.7s serial wall, slowest single test 2.0s -- shard_count
   # stays 1, far inside the 30m shard budget, so no nightly marker split
   # is needed.
+  # spec-kitty#4374 (WP03 T009): promoted tests/specify_cli/dashboard (the secondary
+  # tests/specify_cli/** mirror) as a THIRD tree onto this row -- re-measured the
+  # combined module (not just the new tree) in T010 to keep skew accurate.
   shard_count: 1
   test_dirs:
   - tests/dashboard
   - tests/test_dashboard
+  - tests/specify_cli/dashboard
 - module: upgrade
   roots:
   - src/specify_cli/upgrade/**
@@ -294,6 +315,27 @@ modules:
   shard_count: 1
   test_dirs:
   - tests/ci
+- module: auth
+  roots:
+  - src/specify_cli/auth/**
+  cov_targets:
+  - specify_cli.auth
+  tier: standard
+  # SECURITY-CRITICAL new-row-via-scrub (spec-kitty#4374 WP03 T011, Phase-S capped
+  # promotion set): the ONE new-row-via-scrub this mission's cap permits. Minted via
+  # tests/release/ci_retirement_scrub.json's `auth` group (roots/cov_targets mirrored
+  # verbatim, per test_registry_consumes_scrub_verbatim_no_divergent_rescrub). Parent-only
+  # test_dirs claim (tests/auth); the concurrency/integration/secure_storage/stress
+  # subdirs are covered by recursion, never listed separately (non-nesting guard).
+  # Verified NOT blocked by the registry's 20-reusable-workflow-ceiling comment: all
+  # modules[] rows share ONE `uses: ./.github/workflows/module-tests.yml` reference via
+  # strategy.matrix (ci-modules.yml:293-297) -- a 21st row is one more matrix cell, not a
+  # new `uses:` reference. Measured basis: scripts/ci/capture_shard_timings.py --module
+  # auth --write (see ci-shard-timings.json for run-id/duration) -- shard_count stays 1,
+  # far inside the 30m shard budget.
+  shard_count: 1
+  test_dirs:
+  - tests/auth
 # OUT-OF-MATRIX INVENTORY (spec-kitty#4369). Every test-bearing directory under
 # tests/ that no modules[] row claims, each with the reason it is deliberately
 # outside the per-PR module matrix. Enforced by
@@ -354,114 +396,204 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/cli/commands
 
 - reason: >-
-    Secondary tests/specify_cli/** tree: the module matrix claims each module's primary
-    mirror (tests/<module> or an explicit row test_dirs entry); this secondary tree is
-    selected by no per-PR lane. Recorded deliberately (spec-kitty#4369 inventory) --
-    promoting one of these into a row is a measured-durations decision, never a silent
-    default.
+    Lift-invariant (spec-kitty#4374 T006/WP02, #4715 pattern): PC1-PROMOTION-BLOCKED
+    (recursive descendants include the excluded tests/specify_cli/cli/commands AND the
+    execution_context-claimed tests/specify_cli/cli/commands/agent -- illegal to claim as
+    a test_dirs parent). This tree's drift-prone single-topic invariants were extracted to
+    8 always-on architectural gates: tests/architectural/test_lifted_cli_no_visible_feature_alias.py,
+    test_lifted_cli_doctrine_retirement.py, test_lifted_cli_bytecode_heal_startup.py,
+    test_lifted_cli_accept_coord_surface_anchor.py, test_lifted_cli_accept_birth_cutover.py,
+    test_lifted_cli_terminal_control_sanitization.py, test_lifted_cli_doctrine_charter_cr02_compat.py,
+    test_lifted_cli_project_root_resolution.py. Accepted named gap: the residual behavioral
+    files in this tree remain make test-full-only -- lifting covers the drift-prone
+    invariants, not the full behavioral surface.
   dirs:
-  - tests/specify_cli/acceptance
+  - tests/specify_cli/cli
+
+- reason: >-
+    Lift-invariant (spec-kitty#4374 T006/WP02, #4715 pattern): single-topic doc-freshness
+    invariants extracted to always-on architectural gates:
+    tests/architectural/test_lifted_specify_cli_docs_trail_model.py,
+    test_lifted_specify_cli_docs_host_surface_inventory.py,
+    test_lifted_specify_cli_docs_readme_governance.py.
+  dirs:
+  - tests/specify_cli/docs
+
+- reason: >-
+    Lift-invariant (spec-kitty#4374 T006/WP02, #4715 pattern): single-topic registry-
+    completeness invariant extracted to
+    tests/architectural/test_lifted_drg_writers_registry_completeness.py.
+  dirs:
+  - tests/specify_cli/drg_writers
+
+- reason: >-
+    Lift-invariant (spec-kitty#4374 T006/WP02, #4715 pattern): single-topic import-hygiene
+    invariant extracted to tests/architectural/test_lifted_mission_v1_import_hygiene.py.
+  dirs:
+  - tests/specify_cli/mission_v1
+
+- reason: >-
+    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
+    agent (cov_targets specify_cli.agent_utils; import census confirms 2x
+    specify_cli.agent_utils.status). Not in the Phase-S capped promotion set
+    (merge/status/dashboard/auth only) -- promotion warranted; deferred to a follow-up
+    (#4732) to respect the bounded single-PR cap, never silently absorbed.
+  dirs:
   - tests/specify_cli/agent_utils
-  - tests/specify_cli/audit
-  - tests/specify_cli/bootstrap
-  - tests/specify_cli/bulk_edit
+
+- reason: >-
+    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
+    charter (cov_targets charter, specify_cli.charter_runtime; roots src/charter/**,
+    src/specify_cli/charter_runtime/**; import census confirms specify_cli.charter_runtime.*
+    / charter.* as top imports). Not in the Phase-S capped promotion set (merge/status/
+    dashboard/auth only) -- promotion warranted; deferred to a follow-up (#4732)
+    to respect the bounded single-PR cap, never silently absorbed.
+  dirs:
   - tests/specify_cli/charter
   - tests/specify_cli/charter_freshness
   - tests/specify_cli/charter_lint
   - tests/specify_cli/charter_lint/checks
   - tests/specify_cli/charter_preflight
   - tests/specify_cli/charter_runtime
-  - tests/specify_cli/cli
+
+- reason: >-
+    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
+    cli (cov_targets specify_cli.cli; roots src/specify_cli/cli/**). Each leaf is itself
+    PC1-clean (does not nest the excluded tests/specify_cli/cli/commands dir or the
+    execution_context-claimed commands/agent sibling, which are separate registry
+    entries). A real EG1 coverage-diff capture over commands/charter was started but
+    exceeded a reasonable WP01 analysis budget (aborted after >8min on a 29-test set,
+    heavy CliRunner/project-init fixture overhead) -- no fabricated mirror-equivalence
+    verdict is recorded; commands/review has no plausible in-matrix mirror at all (zero
+    tests/cli hits by census). Not in the Phase-S capped promotion set -- promotion
+    warranted; deferred to a follow-up (#4732), never silently absorbed.
+  dirs:
   - tests/specify_cli/cli/commands/charter
   - tests/specify_cli/cli/commands/review
+
+- reason: >-
+    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
+    lanes (cov_targets specify_cli.lanes; import census confirms 15x
+    specify_cli.lanes.worktree_allocator, 7x .models, 7x .recovery). Not in the Phase-S
+    capped promotion set (merge/status/dashboard/auth only) -- promotion warranted;
+    deferred to a follow-up (#4732) to respect the bounded single-PR cap, never
+    silently absorbed.
+  dirs:
+  - tests/specify_cli/lanes
+
+- reason: >-
+    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
+    missions (cov_targets specify_cli.missions; import census confirms 18x
+    specify_cli.missions._read_path_resolver, 6x specify_cli.missions._substantive). Not
+    in the Phase-S capped promotion set (merge/status/dashboard/auth only) -- promotion
+    warranted; deferred to a follow-up (#4732) to respect the bounded single-PR
+    cap, never silently absorbed.
+  dirs:
+  - tests/specify_cli/missions
+
+- reason: >-
+    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
+    next (cov_targets specify_cli.runtime, runtime.next, mission_runtime; import census
+    confirms 39x runtime.next.runtime_bridge, 14x
+    runtime.next._internal_runtime.workflow_registry). Not in the Phase-S capped
+    promotion set (merge/status/dashboard/auth only) -- promotion warranted; deferred to
+    a follow-up (#4732) to respect the bounded single-PR cap, never silently
+    absorbed.
+  dirs:
+  - tests/specify_cli/next
+
+- reason: >-
+    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
+    post_merge (cov_targets specify_cli.post_merge; import census confirms 5x
+    specify_cli.post_merge.retrospective_terminus). Not in the Phase-S capped promotion
+    set (merge/status/dashboard/auth only) -- promotion warranted; deferred to a
+    follow-up (#4732) to respect the bounded single-PR cap, never silently
+    absorbed.
+  dirs:
+  - tests/specify_cli/post_merge
+
+- reason: >-
+    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
+    review (cov_targets specify_cli.review; import census confirms 3x
+    specify_cli.review.cycle, 2x specify_cli.review). Not in the Phase-S capped
+    promotion set (merge/status/dashboard/auth only) -- promotion warranted; deferred to
+    a follow-up (#4732) to respect the bounded single-PR cap, never silently
+    absorbed.
+  dirs:
+  - tests/specify_cli/review
+
+- reason: >-
+    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): existing owning row
+    upgrade (cov_targets specify_cli.upgrade; import census confirms 20x
+    specify_cli.upgrade.registry, 18x .migrations, 9x .metadata). Not in the Phase-S
+    capped promotion set (merge/status/dashboard/auth only) -- promotion warranted;
+    deferred to a follow-up (#4732) to respect the bounded single-PR cap, never
+    silently absorbed. Both dirs are the same owner/decision (non-nesting guard: promote
+    together, never parent-only).
+  dirs:
+  - tests/specify_cli/upgrade
+  - tests/specify_cli/upgrade/migrations
+
+- reason: >-
+    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01): none of the 20
+    modules[] rows' roots/cov_targets name these packages (checked against the full
+    registry) -- rootless. Each carries real, unique, non-invariant behavioral coverage
+    of its own currently-unclaimed src/specify_cli/<pkg>/** package. Minting a row is a
+    census-gated two-file edit (scrub group + verbatim-mirrored registry row) --
+    heavier than an existing-row add and outside the Phase-S security-first cap.
+    Promotion warranted; deferred to a follow-up (#4732) to respect the
+    bounded single-PR cap, never silently absorbed. Per-tree import-census rationale is
+    recorded in analysis/disposition-ledger.md (WP01); several of these trees are
+    flagged there for a follow-up naming/consolidation triage against similarly-named
+    pop-(b) trees (dossier, git, migration/migrate, retrospect/retrospective, tracker).
+  dirs:
+  - tests/specify_cli/acceptance
+  - tests/specify_cli/audit
+  - tests/specify_cli/bootstrap
+  - tests/specify_cli/bulk_edit
   - tests/specify_cli/compat
   - tests/specify_cli/config
   - tests/specify_cli/context
   - tests/specify_cli/contracts
-  - tests/specify_cli/dashboard
   - tests/specify_cli/decisions
   - tests/specify_cli/distribution
-  - tests/specify_cli/docs
   - tests/specify_cli/doctrine
   - tests/specify_cli/dossier
-  - tests/specify_cli/drg_writers
   - tests/specify_cli/events
   - tests/specify_cli/git
   - tests/specify_cli/identity
   - tests/specify_cli/integration
   - tests/specify_cli/invocation
   - tests/specify_cli/invocation/cli
-  - tests/specify_cli/lanes
   - tests/specify_cli/live_work
-  - tests/specify_cli/merge
   - tests/specify_cli/migration
   - tests/specify_cli/mission_step_contracts
-  - tests/specify_cli/mission_v1
-  - tests/specify_cli/missions
-  - tests/specify_cli/next
   - tests/specify_cli/orchestrator_api
   - tests/specify_cli/ownership
-  - tests/specify_cli/post_merge
   - tests/specify_cli/readiness
   - tests/specify_cli/regression
   - tests/specify_cli/retrospect
   - tests/specify_cli/retrospective
-  - tests/specify_cli/review
   - tests/specify_cli/saas_client
   - tests/specify_cli/session_presence
   - tests/specify_cli/shims
   - tests/specify_cli/skills
-  - tests/specify_cli/status
   - tests/specify_cli/tasks
   - tests/specify_cli/tasks_authoring
   - tests/specify_cli/test_cli
   - tests/specify_cli/tracker
-  - tests/specify_cli/upgrade
-  - tests/specify_cli/upgrade/migrations
   - tests/specify_cli/widen
-  - tests/specify_cli/write_side
 
 - reason: >-
-    No per-PR lane selects this directory by path; its tests reach CI only through
-    marker-selected lanes (corpus, windows_ci, nightly e2e/performance/interpreter) when
-    individually marked, and run in full via make test-full. Recorded deliberately
-    (spec-kitty#4369) so an unrun directory is a visible decision, never an accident.
+    Sharpen-reason (spec-kitty#4374 disposition ledger, WP01 PC3): already claimed by
+    special_tiers.integration_tests_next (roots tests/integration/**, tests/next/**; job
+    integration-tests-next, ~69min measured, -n auto). Its disposition reconciles with
+    that tier rather than minting a fresh row. The job is currently UNWIRED -- no
+    triggering workflow (ci-router.yml/ci-modules.yml/ci-nightly.yml) invokes a job named
+    integration-tests-next -- a pre-existing honesty gap this ledger surfaces rather than
+    papers over; tracked as a filed follow-up, spec-kitty#4729 (CI: wire the declared
+    integration-tests-next special tier).
   dirs:
-  - tests/_factories
-  - tests/_support
-  - tests/_support/coverage_safety
-  - tests/_support/git_template
-  - tests/acceptance
-  - tests/adversarial
-  - tests/ast_analysis
-  - tests/audit
-  - tests/auth
-  - tests/auth/concurrency
-  - tests/auth/integration
-  - tests/auth/secure_storage
-  - tests/auth/stress
-  - tests/calibration
-  - tests/characterization
-  - tests/cli_gate
-  - tests/compat
-  - tests/concurrency
-  - tests/context
-  - tests/contract
-  - tests/contract/spec_kitty_events_consumer
-  - tests/contract/spec_kitty_tracker_consumer
-  - tests/cross_branch
-  - tests/cross_cutting
-  - tests/cross_cutting/dashboard
-  - tests/cross_cutting/encoding
-  - tests/cross_cutting/misc
-  - tests/cross_cutting/packaging
-  - tests/cross_cutting/versioning
-  - tests/doctor
-  - tests/dossier
-  - tests/evidence
-  - tests/git
-  - tests/git_ops
-  - tests/init
   - tests/integration
   - tests/integration/core
   - tests/integration/git
@@ -469,32 +601,170 @@ out_of_matrix_test_dirs:
   - tests/integration/retrospective
   - tests/integration/review
   - tests/integration/sparse_checkout
-  - tests/invocation
-  - tests/lint
-  - tests/migrate
-  - tests/migration
-  - tests/mission
-  - tests/mission_metadata
-  - tests/packaging
-  - tests/paths
-  - tests/perf
-  - tests/performance
-  - tests/policy
-  - tests/prompts
-  - tests/proof
-  - tests/readiness
-  - tests/regressions
-  - tests/research
-  - tests/retrospective
-  - tests/reviews
-  - tests/scripts
-  - tests/specify_cli
-  - tests/state
+
+- reason: >-
+    Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence
+    grep, analysis/evidence/pop_b_marker_grep.txt): pytest.mark.stress VERIFIED present.
+    Real marker home is ci-nightly.yml's performance-and-e2e job
+    (uv run pytest -m "stress and not windows_ci", #3595/#4698) -- no per-PR lane selects
+    this directory; not a disguised snapshot (#2979 class).
+  dirs:
   - tests/stress
+
+- reason: >-
+    Sharpen-reason (spec-kitty#4374 disposition ledger): marker-MIXED support tree --
+    tests/_support/test_run_basetemp.py is fast/unit and test_wall_clock_assertions.py is
+    mostly fast/unit with a single stress test, so no single marker lane is its home. It is
+    reached in full via make test-full and ci-nightly.yml's full-module-matrix (the nightly
+    cross-module post-merge safety net); no per-PR path lane selects it by directory. Not a
+    disguised snapshot (#2979 class) -- the full-suite home is named.
+  dirs:
+  - tests/_support
+
+- reason: >-
+    Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence
+    grep, analysis/evidence/pop_b_marker_grep.txt): pytest.mark.performance VERIFIED
+    present. Real marker home is ci-nightly.yml's performance-and-e2e job
+    (uv run pytest -m performance, #3595) -- no per-PR lane selects this directory; not a
+    disguised snapshot (#2979 class). tests/performance is one of the two spec-kitty#4426
+    dirs this ledger decides (SC-008).
+  dirs:
+  - tests/audit
+  - tests/cross_cutting/encoding
+  - tests/cross_cutting/misc
+  - tests/doctor
+  - tests/git
+  - tests/migration
+  - tests/performance
+  - tests/retrospective
+
+- reason: >-
+    Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence
+    grep, analysis/evidence/pop_b_marker_grep.txt): pytest.mark.corpus VERIFIED present.
+    Real marker home is ci-router.yml's marker-selected 'tests (corpus)' job
+    (uv run pytest -m "corpus and not windows_ci") -- a conditional per-PR lane gated on
+    corpus-touching path changes, not the per-module matrix; claiming it in a module row
+    too would double-run it. Not a disguised snapshot (#2979 class).
+  dirs:
+  - tests/contract
+
+- reason: >-
+    Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence
+    grep, analysis/evidence/pop_b_marker_grep.txt): both pytest.mark.performance and
+    pytest.mark.stress VERIFIED present. Real marker homes are ci-nightly.yml's
+    performance-and-e2e job (-m performance and -m "stress and not windows_ci",
+    #3595/#4698) -- no per-PR lane selects this directory; not a disguised snapshot
+    (#2979 class).
+  dirs:
+  - tests/cross_cutting
+  - tests/cross_cutting/dashboard
+
+- reason: >-
+    Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence
+    grep, analysis/evidence/pop_b_marker_grep.txt): pytest.mark.windows_ci VERIFIED
+    present. Real marker home is ci-windows.yml's 'Windows critical' job
+    (pytest -m windows_ci) -- a Windows-only per-PR/push lane, not the Linux module
+    matrix. Not a disguised snapshot (#2979 class).
+  dirs:
+  - tests/mission
+  - tests/paths
+  - tests/policy
+  - tests/tracker
+
+- reason: >-
+    Sharpen-reason (spec-kitty#4374 disposition ledger, WP01/T004 EG2 marker-presence
+    grep, analysis/evidence/pop_b_marker_grep.txt): both pytest.mark.windows_ci and
+    pytest.mark.performance VERIFIED present. Real marker homes are ci-windows.yml's
+    'Windows critical' job (-m windows_ci) and ci-nightly.yml's performance-and-e2e job
+    (-m performance). Not a disguised snapshot (#2979 class).
+  dirs:
+  - tests/regressions
+
+- reason: >-
+    Lift-invariant (spec-kitty#4374 T006/WP02, #4715 pattern): single-topic
+    invariant/regression-freeze checks extracted to always-on architectural gates:
+    tests/evidence -> test_lifted_evidence.py; tests/lint -> test_lifted_lint.py;
+    tests/mission_metadata -> test_lifted_mission_metadata.py; tests/proof ->
+    test_lifted_proof.py; tests/reviews -> test_lifted_reviews.py; tests/state ->
+    test_lifted_state.py; tests/task_utils -> test_lifted_task_utils.py. Each dir below
+    maps 1:1 to its named gate under tests/architectural/.
+  dirs:
+  - tests/evidence
+  - tests/lint
+  - tests/mission_metadata
+  - tests/proof
+  - tests/reviews
+  - tests/state
   - tests/task_utils
+
+- reason: >-
+    Lift-invariant (spec-kitty#4374 T006/WP02, #4715 pattern): single-topic Windows-
+    no-keyring packaging invariant extracted to
+    tests/architectural/test_lifted_packaging_windows_keyring.py. #2979 note: the
+    filename implies Windows-specific behavior, but T004's grep found NO windows_ci
+    marker on this tree; WP02 confirmed the lifted assertion is genuinely
+    platform-independent (safe as an always-on gate) rather than requiring a Windows
+    runner -- this sidesteps the marker-invisibility gap instead of leaving it silent.
+  dirs:
+  - tests/packaging
+
+- reason: >-
+    Lift-invariant (spec-kitty#4374 T006/WP02, #4715 pattern): PC1 PROMOTION-BLOCKED
+    (descendants include the excluded tests/specify_cli/cli/commands AND multiple
+    claimed dirs: tests/specify_cli/core, .../tool_surface, .../coordination,
+    .../cli/commands/agent, .../runtime). Its ~70 direct files (excluding the
+    separately-dispositioned pop-(a) subtrees) are overwhelmingly single-topic
+    regression/guard/contract/migration checks; a representative subset was extracted to
+    always-on architectural gates: test_lifted_root_command_template_cleanliness.py,
+    test_lifted_root_gitignore_contract.py, test_lifted_root_meta_fail_closed_census.py,
+    test_lifted_root_no_checklist_surface.py,
+    test_lifted_root_validate_mission_paths_single_caller.py. The set is TOO LARGE
+    (~70 files) to lift exhaustively in this WP -- WP02 triaged/batched a representative
+    sample per the ledger's guidance; the residual files remain make test-full-only, an
+    accepted named gap (not a silent one).
+  dirs:
+  - tests/specify_cli
+
+- reason: >-
+    Deferred-promotion (spec-kitty#4374 disposition ledger, WP01/T004 EG2
+    marker-presence grep, analysis/evidence/pop_b_marker_grep.txt): NO
+    {corpus,windows_ci,performance,e2e,stress} marker found in this tree by grep. The
+    pre-mission reason implied marker-reachability without verification -- kept as-is
+    that would be a #2979-class disguised snapshot. Correct disposition: each tree
+    below needs either a real marker applied (plus CI wiring) or a per-PR/nightly lane
+    of its own -- rootless, no owning module row. Promotion/marking warranted; deferred
+    to a follow-up (#4732), never silently absorbed. Per-tree content and
+    similarly-named-tree flags are recorded in analysis/disposition-ledger.md (WP01).
+  dirs:
+  - tests/_factories
+  - tests/_support/coverage_safety
+  - tests/_support/git_template
+  - tests/acceptance
+  - tests/adversarial
+  - tests/ast_analysis
+  - tests/calibration
+  - tests/characterization
+  - tests/cli_gate
+  - tests/compat
+  - tests/concurrency
+  - tests/context
+  - tests/contract/spec_kitty_events_consumer
+  - tests/contract/spec_kitty_tracker_consumer
+  - tests/cross_branch
+  - tests/cross_cutting/packaging
+  - tests/cross_cutting/versioning
+  - tests/dossier
+  - tests/git_ops
+  - tests/init
+  - tests/invocation
+  - tests/migrate
+  - tests/perf
+  - tests/prompts
+  - tests/readiness
+  - tests/research
+  - tests/scripts
   - tests/tasks
   - tests/test_template
-  - tests/tracker
 
 special_tiers:
   integration_tests_next:
@@ -505,8 +775,14 @@ special_tiers:
     roots:
     - tests/integration/**
     - tests/next/**
-    note: De-serialized from fully-serial (FR-008/NFR-001). Runs its own internal xdist fan-out inside
-      one job rather than being split across separate registry shards.
+    note: >-
+      De-serialized from fully-serial (FR-008/NFR-001). Runs its own internal xdist fan-out
+      inside one job rather than being split across separate registry shards. WIRING GAP
+      (spec-kitty#4374 WP01 PC3 / WP03 T012) -- no triggering workflow (ci-router.yml,
+      ci-modules.yml, ci-nightly.yml) currently invokes a job named integration-tests-next;
+      this tier is declared here but unwired, a pre-existing honesty gap surfaced rather
+      than papered over. Tracked as spec-kitty#4729, "CI: wire the declared
+      integration-tests-next special tier (job unreferenced)".
   architectural:
     job: architectural-heavy
     always_on: true
