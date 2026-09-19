@@ -375,8 +375,10 @@ def _sole_active_mission_slug_or_none(repo_root: Path) -> str | None:
     """Return the sole *active* mission's slug, or ``None`` (#4677).
 
     ``agent tasks status`` defaults ``--mission`` to the one mission that is not
-    completed -- neither merged nor with every WP terminal (which is also how a
-    canceled mission reads) -- per the maintainer decision on #4677. Zero or
+    completed -- not merged, and not with every WP terminal (an all-canceled
+    mission reads completed too, since its WPs are all terminal; there is no
+    mission-level cancel marker, so a never-started zero-WP mission still counts
+    as active) -- per the maintainer decision on #4677. Zero or
     several active missions return ``None`` so the caller's existing
     ``--mission <slug> is required`` error fires (no silent fallback when
     ambiguous). A mission whose state cannot be read counts as active: an
