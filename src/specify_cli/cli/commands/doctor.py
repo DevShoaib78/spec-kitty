@@ -51,7 +51,10 @@ if TYPE_CHECKING:
 
     from ._doctrine_health import DoctrineHealthReport
 
-app = typer.Typer(name="doctor", help="Project health diagnostics")
+# #4678: ``invoke_without_command`` routes a bare ``spec-kitty doctor`` to
+# ``_doctor_group`` below (and opts this group out of the root-level
+# help-and-exit-0 policy in ``cli/commands/__init__.py``).
+app = typer.Typer(name="doctor", help="Project health diagnostics", invoke_without_command=True)
 # WP08 (#1623): the doctrine/profile health *render* helpers were extracted to
 # ``_profile_health_render`` (which instantiates the single ``console``
 # re-exported via ``_doctor_shared``).  ``doctor.py`` re-imports them so the
@@ -222,6 +225,29 @@ def _auto_discover_doctor_siblings() -> None:
 
 
 _auto_discover_doctor_siblings()
+
+
+@app.callback(invoke_without_command=True)
+def _doctor_group(ctx: typer.Context) -> None:
+    """Refuse a bare ``spec-kitty doctor`` so it never reads as a passing check (#4678).
+
+    Every diagnostic lives in a subcommand; the group itself runs nothing. The
+    root-level empty-group policy renders help and exits 0, which for a command
+    named ``doctor`` is indistinguishable from a health check that ran and
+    passed. Keep the help (the list of diagnostics IS the useful answer), but
+    say explicitly that nothing ran and exit 2 (usage error) so neither a human
+    nor a script can mistake the output for a clean bill of health.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
+    typer.echo(ctx.get_help(), color=ctx.color)
+    typer.echo(
+        "Error: no diagnostic ran. `spec-kitty doctor` needs a subcommand "
+        "(for example `spec-kitty doctor skills`); see the list above or run "
+        "`spec-kitty doctor --help`.",
+        err=True,
+    )
+    raise typer.Exit(code=2)
 
 
 @app.command(name="command-files")

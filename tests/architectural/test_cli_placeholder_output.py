@@ -15,7 +15,9 @@ from typer.main import get_command
 from tests.architectural.test_json_contract_enumeration import walk_commands
 
 pytestmark = pytest.mark.architectural
-CALLBACK_PATHS = {"", "context", "migrate", "charter list"}
+# "doctor" joined 2026-09-19 (#4678): the group opted into ``invoke_without_command``
+# so a bare ``spec-kitty doctor`` refuses (exit 2) instead of reading as a passing check.
+CALLBACK_PATHS = {"", "context", "migrate", "charter list", "doctor"}
 
 
 def assert_no_placeholders(output: str) -> None:

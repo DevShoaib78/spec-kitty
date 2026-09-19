@@ -39,14 +39,30 @@ def test_registered_top_level_groups_default_to_help(monkeypatch) -> None:
         assert command.commands[str(name)].no_args_is_help is True, name
 
 
-def test_empty_doctor_invocation_shows_help(monkeypatch) -> None:
+def test_empty_doctor_invocation_is_not_a_passing_check(monkeypatch) -> None:
+    """#4678: bare ``doctor`` still lists its diagnostics, but says none ran and exits 2.
+
+    The generic top-level policy (help + exit 0) is wrong for a group named
+    ``doctor``: exit 0 with no diagnostic executed reads as a passing health
+    check. This is the one group that opts out via ``invoke_without_command``.
+    """
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     result = CliRunner().invoke(_registered_root(), ["doctor"])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 2
     assert "Usage:" in result.output
     assert "Project health diagnostics" in result.output
+    assert "no diagnostic ran" in result.output
     assert "Missing command" not in result.output
+
+
+def test_doctor_subcommand_help_is_unaffected(monkeypatch) -> None:
+    """The bare-invocation guard must not intercept real subcommands (#4678)."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    result = CliRunner().invoke(_registered_root(), ["doctor", "channel", "--help"])
+
+    assert result.exit_code == 0
+    assert "no diagnostic ran" not in result.output
 
 
 def test_future_top_level_groups_are_covered_by_registration_guard() -> None:
