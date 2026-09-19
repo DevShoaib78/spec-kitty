@@ -95,6 +95,56 @@ def test_sole_mission_none_when_ambiguous(repo: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# _sole_active_mission_slug_or_none (#4677)
+# ---------------------------------------------------------------------------
+
+
+def _make_merged_mission(specs: Path, slug: str) -> Path:
+    """A completed mission: ``meta.json`` carries the ``merged_at`` marker."""
+    d = _make_mission(specs, slug)
+    (d / "meta.json").write_text(
+        json.dumps({"mission_slug": slug, "merged_at": "2026-01-01T00:00:00+00:00"}),
+        encoding="utf-8",
+    )
+    return d
+
+
+def test_sole_active_mission_none_when_zero(repo: Path) -> None:
+    assert seam._sole_active_mission_slug_or_none(repo) is None
+
+
+def test_sole_active_mission_returns_only_slug(repo: Path) -> None:
+    _make_mission(repo / "kitty-specs", "001-only")
+    assert seam._sole_active_mission_slug_or_none(repo) == "001-only"
+
+
+def test_sole_active_mission_ignores_completed_missions(repo: Path) -> None:
+    """A merged mission does not count -- the one still-active mission is the default."""
+    _make_merged_mission(repo / "kitty-specs", "001-shipped")
+    _make_mission(repo / "kitty-specs", "002-live")
+    assert seam._sole_active_mission_slug_or_none(repo) == "002-live"
+
+
+def test_sole_active_mission_none_when_only_completed(repo: Path) -> None:
+    _make_merged_mission(repo / "kitty-specs", "001-shipped")
+    assert seam._sole_active_mission_slug_or_none(repo) is None
+
+
+def test_sole_active_mission_none_when_ambiguous(repo: Path) -> None:
+    _make_mission(repo / "kitty-specs", "001-alpha")
+    _make_mission(repo / "kitty-specs", "002-beta")
+    assert seam._sole_active_mission_slug_or_none(repo) is None
+
+
+def test_sole_active_mission_unreadable_state_counts_as_active(repo: Path) -> None:
+    """A corrupt ``meta.json`` must not silently pick the *other* mission."""
+    corrupt = _make_mission(repo / "kitty-specs", "001-corrupt")
+    (corrupt / "meta.json").write_text("{not json", encoding="utf-8")
+    _make_mission(repo / "kitty-specs", "002-live")
+    assert seam._sole_active_mission_slug_or_none(repo) is None
+
+
+# ---------------------------------------------------------------------------
 # _build_setup_plan_detection_error
 # ---------------------------------------------------------------------------
 

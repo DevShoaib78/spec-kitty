@@ -173,7 +173,7 @@
        "deprecated": false
       },
       "status": {
-       "help": "Display kanban status board for all work packages in a feature.\n\nShows a beautiful overview of work package statuses, progress metrics,\nand next steps based on dependencies.\n\nWPs in \"doing\" with no commits for --stale-threshold minutes are flagged\nas potentially stale (agent may have stopped).\n\nExample:\n    spec-kitty agent tasks status\n    spec-kitty agent tasks status --mission 012-documentation-mission\n    spec-kitty agent tasks status --json\n    spec-kitty agent tasks status --stale-threshold 15",
+       "help": "Display kanban status board for all work packages in a feature.\n\nShows a beautiful overview of work package statuses, progress metrics,\nand next steps based on dependencies.\n\nWPs in \"doing\" with no commits for --stale-threshold minutes are flagged\nas potentially stale (agent may have stopped).\n\nExample:\n    spec-kitty agent tasks status                  # the sole active mission\n    spec-kitty agent tasks status --mission 012-documentation-mission\n    spec-kitty agent tasks status --json\n    spec-kitty agent tasks status --stale-threshold 15",
        "hidden": false,
        "deprecated": false
       },

@@ -186,8 +186,17 @@ def _st_resolve_dirs(st: _StatusState) -> None:
         raise typer.Exit(1)
     st.repo_root = repo_root
 
+    # #4677: an omitted --mission defaults to the sole active mission (maintainer
+    # decision on the issue); zero or several active missions fall through to
+    # the existing "--mission <slug> is required" error in ``_find_mission_slug``.
+    explicit_mission = st.mission
+    if not (explicit_mission and explicit_mission.strip()):
+        from specify_cli.cli.commands.agent.mission_feature_resolution import _sole_active_mission_slug_or_none
+
+        explicit_mission = _sole_active_mission_slug_or_none(repo_root)
+
     st.mission_slug = _tasks._find_mission_slug(
-        explicit_mission=st.mission,
+        explicit_mission=explicit_mission,
         json_output=st.json_output,
         repo_root=repo_root,
         error_handler=_status_selector_error if st.json_output else None,
