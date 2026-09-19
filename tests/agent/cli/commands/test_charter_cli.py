@@ -566,14 +566,22 @@ def test_sync_command_human_and_json_surfaces_do_not_contradict_3045(tmp_path: P
        staleness check targets the retired ``metadata.yaml`` (#3045 remedy
        3) -- a corrected staleness check may compute it differently.
 
-    The substantive assertion is positive, not a bare negative substring: if
-    the JSON surface reports the sync did NOT actually happen
-    (``success is False``), the human surface must not exit 0 silently --
-    it must fail loudly. A cosmetic reword of the "already in sync" string
-    alone (keeping exit 0) does not satisfy this, because the check does not
-    inspect the human surface's text at all -- only whether it raises a
-    non-zero exit given a ``SyncResult`` that itself reports nothing was
-    synced.
+    The substantive assertion is that the two surfaces AGREE on success vs.
+    failure over the same ``SyncResult``: the human surface exits 0 iff the
+    JSON surface reports ``success``. That is the remedy-agnostic form of the
+    #3045 invariant and stays live under either sanctioned remedy:
+    - #4679 no-op (shipped): both report inert success -- JSON ``success:
+      true``, human exits 0 with the ``No-op`` line.
+    - a hypothetical honest-failure / repair mode: both report the same
+      outcome -- JSON ``success: false`` with the human surface exiting
+      non-zero, or JSON ``success: true`` with the human surface exiting 0.
+
+    An earlier version of this body early-returned on ``payload["success"]``
+    and then asserted the human surface exited non-zero -- which encoded only
+    the honest-failure remedy. The #4679 redefinition of ``success`` to
+    ``result.error is None`` made that early-return fire for the no-op case,
+    turning the assertion into dead code for the exact scenario this guards.
+    Asserting agreement directly keeps it live.
     """
     charter_dir = tmp_path / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
@@ -597,18 +605,17 @@ def test_sync_command_human_and_json_surfaces_do_not_contradict_3045(tmp_path: P
             human_exit_code = exc.exit_code
     human_text = capture.get()
 
-    if payload["success"]:
-        # This single sync() call already resolved the staleness (the
-        # sanctioned *repair* remedy) -- both surfaces legitimately agree
-        # the charter is now in sync, so there is nothing to contradict.
-        return
-
-    assert human_exit_code not in (None, 0), (
-        "#3045: the JSON surface reports success=False (charter was not "
-        f"actually synced by this call; stale_before={payload['stale_before']!r}) "
-        "but the human surface exited 0 without raising -- a silent "
-        "'everything is fine' when nothing was synced. The operator's "
-        "stated preference is a loud failure naming the recovery path "
-        "('charter generate' / 'charter synthesize'), not a quiet success. "
+    # The two surfaces must AGREE on success vs. failure: the human surface
+    # exits 0 iff the JSON surface reports success. This is the #3045
+    # invariant in remedy-agnostic form -- it holds for the #4679 no-op
+    # (both succeed) and for any future honest-failure/repair mode (both
+    # agree on the failure), and it never early-returns past the no-op
+    # scenario the way the pre-#4679 ``payload["success"]`` gate did.
+    human_succeeded = human_exit_code in (None, 0)
+    assert human_succeeded == payload["success"], (
+        "#3045: the human and JSON surfaces of `charter sync` disagree over "
+        "the same SyncResult -- one reports success while the other reports "
+        f"failure. human exit={human_exit_code!r} (succeeded={human_succeeded}), "
+        f"json success={payload['success']!r}, stale_before={payload['stale_before']!r}. "
         f"human output: {human_text!r}, json payload: {payload!r}"
     )
