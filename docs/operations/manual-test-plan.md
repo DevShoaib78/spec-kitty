@@ -58,7 +58,7 @@ related:
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
 | 1.1.1 | Run `spec-kitty --version` | Displays `2.0.2` or later | | |
-| 1.1.2 | Run `spec-kitty doctor` | All health checks pass, no critical errors | | |
+| 1.1.2 | Run `spec-kitty doctor skills` (a bare `spec-kitty doctor` runs no diagnostic and exits 2 by design) | Skills/command-surface diagnostic passes, no critical errors | | |
 | 1.1.3 | Run `spec-kitty auth status` | Shows authenticated user, team slug, server URL | | |
 
 ### 1.2 Mission Lifecycle (software-dev)
@@ -540,10 +540,10 @@ Perform these with the local dashboard and SaaS dashboard open side-by-side on t
 
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
-| 12.3.1 | Corrupt a line in `status.events.jsonl` | `spec-kitty doctor` detects corruption, reports it | | |
+| 12.3.1 | Corrupt a line in `status.events.jsonl` | `spec-kitty doctor mission-state --audit` detects corruption, reports it | | |
 | 12.3.2 | Duplicate event IDs in event log | Deduplication prevents double-processing | | |
 | 12.3.3 | Merge two branches with divergent event logs | Events merged deterministically by ULID ordering | | |
-| 12.3.4 | Delete a WP file while in `in_progress` | Status system detects orphan, `doctor` reports it | | |
+| 12.3.4 | Delete a WP file while in `in_progress` | Status system detects orphan, `doctor mission-state --audit` reports it | | |
 
 ---
 
