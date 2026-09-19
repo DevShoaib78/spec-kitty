@@ -1305,7 +1305,7 @@ def validate_workflow(
 
 @app.command(name="status")
 def status(
-    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (optional when exactly one active mission exists)")] = None,
 
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
     stale_threshold: Annotated[int, typer.Option("--stale-threshold", help="Minutes of inactivity before a WP is considered stale")] = 10,
@@ -1319,7 +1319,7 @@ def status(
     as potentially stale (agent may have stopped).
 
     Example:
-        spec-kitty agent tasks status
+        spec-kitty agent tasks status                  # the sole active mission
         spec-kitty agent tasks status --mission 012-documentation-mission
         spec-kitty agent tasks status --json
         spec-kitty agent tasks status --stale-threshold 15

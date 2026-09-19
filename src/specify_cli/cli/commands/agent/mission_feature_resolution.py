@@ -371,6 +371,33 @@ def _sole_mission_slug_or_none(repo_root: Path) -> str | None:
     return str(candidates[0]["mission_slug"])
 
 
+def _sole_active_mission_slug_or_none(repo_root: Path) -> str | None:
+    """Return the sole *active* mission's slug, or ``None`` (#4677).
+
+    ``agent tasks status`` defaults ``--mission`` to the one mission that is not
+    completed -- neither merged nor with every WP terminal (which is also how a
+    canceled mission reads) -- per the maintainer decision on #4677. Zero or
+    several active missions return ``None`` so the caller's existing
+    ``--mission <slug> is required`` error fires (no silent fallback when
+    ambiguous). A mission whose state cannot be read counts as active: an
+    unreadable mission must never cause a *different* one to be picked on the
+    operator's behalf.
+    """
+    from specify_cli.status import is_mission_completed
+
+    active: list[str] = []
+    for candidate in _list_feature_spec_candidates(repo_root):
+        try:
+            completed = is_mission_completed(Path(str(candidate["feature_dir"])))
+        except Exception:  # unreadable meta/event log -> keep it as a candidate
+            completed = False
+        if not completed:
+            active.append(str(candidate["mission_slug"]))
+    if len(active) != 1:
+        return None
+    return active[0]
+
+
 def _build_setup_plan_detection_error(
     repo_root: Path,
     _base_error: str,
