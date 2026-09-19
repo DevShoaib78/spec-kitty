@@ -5811,7 +5811,7 @@ _Tracker synchronization commands_
    6  Project metadata corrupt (BLOCK_PROJECT_CORRUPT)
    1  General error
 
- See also: ``docs/guides/install-and-upgrade.md``
+ See also: ``docs/guides/how-to/installation/install-and-upgrade.md``
 
  Examples:
      spec-kitty upgrade              # Upgrade to current version
