@@ -476,6 +476,24 @@ def test_checkout_without_a_hosted_remote_has_nothing_to_ask(
     assert "no hosted forge remote" in result.stdout
 
 
+def test_checkout_without_an_origin_is_told_to_add_one(clone: Path) -> None:
+    """A checkout with no ``origin`` is refused for exactly that reason, so the
+    remedy must be "add one" — not "run this from inside a mission repository",
+    which the user already is (#4626). The `[kitty "quarantine"]` section name
+    is data, not Rich markup, and is explained rather than left as jargon."""
+    subprocess.run(["git", "remote", "remove", "origin"], cwd=clone, check=True, capture_output=True)
+
+    result = runner.invoke(app, ["routes"])
+
+    assert result.exit_code == 1
+    flat = " ".join(result.stdout.split())
+    assert "has no `origin` remote" in flat
+    assert '[kitty "quarantine"] record in `.git/config` preserving a former origin' in flat
+    assert "Add an `origin` remote (`git remote add origin <url>`)" in flat
+    assert "never from the directory name" in flat
+    assert "Spec Kitty mission repository" not in flat
+
+
 def test_routes_is_registered_at_the_top_level() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0

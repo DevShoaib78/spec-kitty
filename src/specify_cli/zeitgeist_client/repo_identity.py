@@ -512,8 +512,8 @@ def repo_name(cwd: str, deadline: Deadline | None = None) -> str:
 
     raise UnverifiedRepositoryIdentity(
         f"{cwd!r} has no `origin` remote (live or in `.git/config`) and no "
-        f"[{_QUARANTINE_SECTION}] quarantine record — refusing to mint an "
-        "identity from a directory name"
+        f"[{_QUARANTINE_SECTION}] record in `.git/config` preserving a former "
+        "origin — refusing to mint an identity from a directory name"
     )
 
 

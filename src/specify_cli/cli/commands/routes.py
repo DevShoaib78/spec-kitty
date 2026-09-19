@@ -76,8 +76,19 @@ def _resolve_checkout() -> tuple[str, str, str | None]:
         deadline = repo_identity.Deadline()
         name = repo_identity.repo_name(cwd, deadline)
         origin = repo_identity.origin_url(cwd, deadline)
+    except repo_identity.UnverifiedRepositoryIdentity as exc:
+        # The diagnosis names the cause (no `origin`), so the remedy must be
+        # "add one" — identity derives from `origin`, never from the directory
+        # name, and the user is usually already inside a mission repository
+        # (#4626). ``escape``: the diagnosis names the `[kitty "quarantine"]`
+        # config section, which Rich would otherwise swallow as a markup tag.
+        _fail(
+            f"could not identify this checkout ({escape(str(exc))}). "
+            "Add an `origin` remote (`git remote add origin <url>`) — repository identity "
+            "is derived from it, never from the directory name."
+        )
     except repo_identity.RepoIdentityError as exc:
-        _fail(f"could not identify this checkout ({exc}); run this from inside a Spec Kitty mission repository.")
+        _fail(f"could not identify this checkout ({escape(str(exc))}); run this from inside a Spec Kitty mission repository.")
     slug, host = resolution.repo_slug_and_host(origin)
     if slug is None:
         _fail(f"{name!r} has no hosted forge remote, so no team can admit it and there is no relay to show. Nothing about this checkout is broadcast.")
