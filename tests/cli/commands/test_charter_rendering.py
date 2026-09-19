@@ -87,10 +87,10 @@ def test_sync_renders_success_message_when_synced(tmp_path: Path) -> None:
     assert "synced" in result.output.lower() or "Charter" in result.output
 
 
-def test_sync_renders_already_in_sync_when_noop(tmp_path: Path) -> None:
+def test_sync_renders_noop(tmp_path: Path) -> None:
     """Arrange: sync returns noop (synced=False, no error);
     Act: invoke sync;
-    Assert: 'already in sync' (stable substring) in output."""
+    Assert: the explicit 'No-op:' line (stable substring) in output (#4679)."""
     project = _project(tmp_path)
 
     fake_result = MagicMock()
@@ -107,7 +107,7 @@ def test_sync_renders_already_in_sync_when_noop(tmp_path: Path) -> None:
         result = runner.invoke(app, ["sync"])
 
     assert result.exit_code == 0
-    assert "already in sync" in result.output
+    assert "No-op:" in result.output
 
 
 # ---------------------------------------------------------------------------

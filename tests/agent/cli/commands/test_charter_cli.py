@@ -113,32 +113,32 @@ def test_sync_command_success(mock_repo: Path) -> None:
             assert not (mock_repo / ".kittify" / "charter" / retired_file).exists()
 
 
-def test_sync_command_already_synced(mock_repo: Path) -> None:
-    """#3045: ``mock_repo`` is the charter.md-present / charter.yaml-absent /
-    never-synced state, so under the honest-reporter remedy ``sync`` reports the
-    charter as stale and did NOT sync it — a loud non-zero exit naming the
-    recovery path, not a silent "already in sync". The prior ``exit_code == 0`` /
-    "already in sync" assertions were a stale pin on the exact misleading success
-    this remediation removes; rewritten here (not annotated) alongside
-    ``test_sync_command_success``, per the failing-test remediation framework.
-    Idempotent: a second stale ``sync`` fails the same way."""
+def test_sync_command_is_an_explicit_noop(mock_repo: Path) -> None:
+    """#4679: ``charter sync`` is a permanent no-op kept for compatibility, and
+    says so -- exit 0 with an explicit "No-op" line -- instead of the
+    failure-looking red "Charter was not synced" / exit 1 that #3045's
+    honest-reporter remedy rendered for the same inert outcome. Idempotent:
+    a second ``sync`` (and ``--force``, which does nothing) reads the same."""
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = mock_repo
 
-        result1 = runner.invoke(app, ["sync"])
-        assert result1.exit_code == 1
-
-        result2 = runner.invoke(app, ["sync"])
-        assert result2.exit_code == 1
-        assert "was not synced" in result2.stdout
+        for args in (["sync"], ["sync"], ["sync", "--force"]):
+            result = runner.invoke(app, args)
+            assert result.exit_code == 0, result.stdout
+            assert "No-op:" in result.stdout
+            assert "kept for compatibility" in result.stdout
+            assert "Nothing to do" in result.stdout
+            assert "was not synced" not in result.stdout
 
 
 def test_sync_command_json_output(mock_repo: Path) -> None:
     """IC-04 (#2773): mirrors ``test_sync_command_success`` -- ``sync``'s
-    JSON payload reports the noop contract (``result: "noop"``,
-    ``success: False``, empty ``files_written``) because extraction is
-    retired; ``stale_before`` stays ``True`` since ``metadata.yaml`` (the
-    staleness marker ``sync()`` still checks) never gets created."""
+    JSON payload reports the noop contract (``result: "noop"``, empty
+    ``files_written``) because extraction is retired; ``stale_before`` stays
+    ``True`` since ``metadata.yaml`` (the staleness marker ``sync()`` still
+    checks) never gets created. #4679: the inert outcome is success-shaped
+    (``success: True``) and carries an explicit ``message``, not the
+    failure-looking ``success: False`` it used to report."""
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = mock_repo
 
@@ -147,7 +147,8 @@ def test_sync_command_json_output(mock_repo: Path) -> None:
         assert result.exit_code == 0
         data = json.loads(result.stdout)
         assert data["result"] == "noop"
-        assert data["success"] is False
+        assert data["success"] is True
+        assert "kept for compatibility" in data["message"]
         assert data["stale_before"] is True
         assert data["files_written"] == []
 
