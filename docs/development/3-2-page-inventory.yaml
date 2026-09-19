@@ -1778,6 +1778,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/architecture/zeitgeist-session-identity.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/archive/program-evidence/R2-T1-local-legacy-removal/README.md
   tag: current
   divio_type: reference
@@ -3285,6 +3291,12 @@
   current_target: true
   notes: null
 - path: docs/plans/4-0-0-milestone-roadmap.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/agent-moment-delivery-4216.md
   tag: current
   divio_type: explanation
   owning_workstream: none
