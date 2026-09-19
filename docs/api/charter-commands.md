@@ -224,8 +224,9 @@ uv run spec-kitty charter status --provenance
 bundle-migration upgrader, and `charter context` — still call through this module. `sync` no
 longer extracts anything: the prose→triad scrape (`charter.md` → `governance.yaml` /
 `directives.yaml` / `metadata.yaml`) is retired now that `governance`/`directives` are
-hand-authored sections directly inside `charter.yaml`. Every invocation is a no-op: it always
-reports `synced=False` and `files_written=[]`, regardless of `--force`.
+hand-authored sections directly inside `charter.yaml`. Every invocation is a no-op and says so
+explicitly: exit 0, a `No-op:` line (or `result: "noop"` / `success: true` with a `message`
+under `--json`), and `files_written=[]`, regardless of `--force`.
 
 There is no required step after editing `charter.yaml` by hand — the next `charter context` call
 reads the file as-is. Running `charter sync` is harmless but produces no side effect. See
@@ -234,7 +235,7 @@ source-of-truth model when a project also has a public constitution.
 
 | Flag | Description | Default |
 | --- | --- | --- |
-| `--force`, `-f` | Force sync even if not stale | — |
+| `--force`, `-f` | Accepted for compatibility; has no effect | — |
 | `--json` | Output JSON | — |
 
 **Examples**:

@@ -335,7 +335,7 @@ _Charter management commands_
 │ generate      Generate charter bundle from interview answers + doctrine      │
 │               references.                                                    │
 │ context       Render charter context for a specific workflow action.         │
-│ sync          Sync charter.md to structured YAML config files.               │
+│ sync          No-op kept for compatibility; there is nothing to sync.        │
 │ status        Display charter sync status plus synthesis/operator state.     │
 │ synthesize    Validate and promote agent-generated project-local doctrine    │
 │               artifacts.                                                     │
@@ -1007,10 +1007,14 @@ _Charter pack management commands._
 ```
  Usage: spec-kitty charter sync [OPTIONS]
 
- Sync charter.md to structured YAML config files.
+ No-op kept for compatibility; there is nothing to sync.
+
+ The prose-to-YAML extraction this command used to perform is retired:
+ governance and directives are hand-authored directly in charter.yaml.
+ Running it is harmless and changes nothing.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force  -f        Force sync even if not stale                              │
+│ --force  -f        Accepted for compatibility; has no effect                 │
 │ --json             Output JSON                                               │
 │ --help   -h        Show this message and exit.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯

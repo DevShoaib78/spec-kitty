@@ -19,12 +19,28 @@ if TYPE_CHECKING:
 
 __all__ = ["sync"]
 
+#: #4679: ``charter sync`` is a compatibility shim. The prose->triad extraction
+#: it used to perform is retired (IC-04 / #2773), so there is never anything to
+#: sync -- say so plainly instead of reporting a failure-shaped ``synced=False``.
+_NOOP_MESSAGE = (
+    "'spec-kitty charter sync' is kept for compatibility only and no longer "
+    "syncs anything -- governance and directives are hand-authored in "
+    "charter.yaml. Nothing to do."
+)
+
 
 def _sync_json_payload(result: SyncResult) -> dict[str, object]:
-    """Return stable JSON output for ``charter sync``."""
+    """Return stable JSON output for ``charter sync``.
+
+    #4679: a no-op is an inert outcome, not a failure, so it is reported as
+    ``success: true`` / ``result: "noop"`` with an explicit ``message`` -- not
+    the failure-shaped ``success: false`` this used to emit. ``stale_before``
+    and ``files_written`` keep their meaning for callers that still read them.
+    """
     return {
         "result": "success" if result.synced else "noop",
-        "success": result.synced,
+        "success": result.error is None,
+        "message": "Charter synced" if result.synced else _NOOP_MESSAGE,
         "stale_before": result.stale_before,
         "files_written": result.files_written,
         "extraction_mode": result.extraction_mode,
@@ -36,20 +52,17 @@ def _sync_json_payload(result: SyncResult) -> dict[str, object]:
 def _emit_sync_human_result(result: SyncResult) -> None:
     """Render the non-JSON ``charter sync`` result.
 
-    #3045: this used to unconditionally print "Charter already in sync"
-    whenever ``result.error`` was falsy, contradicting the JSON surface
-    (``_sync_json_payload``) which reports ``success: False`` /
-    ``stale_before: True`` for the exact same ``SyncResult`` — a silent
-    "everything is fine" when nothing was actually synced. The human
-    surface now agrees with the JSON surface's ``success`` field
-    (``result.synced``): a charter that was stale and did NOT get synced by
-    this call fails loudly here too, naming the recovery path, instead of
-    exiting 0.
+    Since the IC-04 triad retirement, ``charter.activation.sync.sync()`` is a
+    pure staleness reporter — ``synced`` is always ``False`` and nothing is
+    written — so this command is a permanent no-op kept for compatibility.
 
-    Since the IC-04 triad retirement, ``charter.activation.sync.sync()`` is a pure
-    staleness reporter — ``synced`` is always ``False`` and ``files_written``
-    always empty — so ``result.synced`` being ``True`` here would only occur
-    under a future repair-mode remedy for #3045.
+    #4679: it used to render that as a failure (#3045's honest-reporter
+    remedy: a red "Charter was not synced", exit 1, pointing at ``charter
+    generate`` / ``synthesize``), which reads as something the operator must
+    fix. A no-op is inert, not broken: say so explicitly and exit 0. The JSON
+    surface (``_sync_json_payload``) reports the same inert success, so the
+    two surfaces still agree (#3045). ``result.synced`` being ``True`` would
+    only occur under a future repair-mode ``sync()``.
     """
     if result.error:
         console.print(f"[red]Error:[/red] {result.error}")
@@ -59,23 +72,20 @@ def _emit_sync_human_result(result: SyncResult) -> None:
         console.print("[green]Charter synced[/green]")
         return
 
-    if result.stale_before:
-        console.print(
-            "[red]Charter was not synced[/red] — charter.md is stale and this "
-            "command did not repair it. Run 'spec-kitty charter generate' or "
-            "'spec-kitty charter synthesize' to repair it."
-        )
-        raise typer.Exit(code=1)
-
-    console.print("[blue]Charter already in sync[/blue] (use --force to re-extract)")
+    console.print(f"[yellow]No-op:[/yellow] {_NOOP_MESSAGE}")
 
 
 @charter_app.command()
 def sync(
-    force: bool = typer.Option(False, "--force", "-f", help="Force sync even if not stale"),
+    force: bool = typer.Option(False, "--force", "-f", help="Accepted for compatibility; has no effect"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
-    """Sync charter.md to structured YAML config files."""
+    """No-op kept for compatibility; there is nothing to sync.
+
+    The prose-to-YAML extraction this command used to perform is retired:
+    governance and directives are hand-authored directly in charter.yaml.
+    Running it is harmless and changes nothing.
+    """
     from charter.activation.sync import sync as sync_charter
 
     try:

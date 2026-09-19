@@ -205,7 +205,7 @@ def test_sync_noop_when_already_synced(tmp_path: Path) -> None:
         result = runner.invoke(app, ["sync"])
 
     assert result.exit_code == 0, result.output
-    assert "already in sync" in result.output or "sync" in result.output.lower()
+    assert "No-op:" in result.output
 
 
 # ---------------------------------------------------------------------------
